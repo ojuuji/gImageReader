@@ -407,6 +407,10 @@ bool OutputEditorText::open(const QString& filename) {
 
 bool OutputEditorText::save(int page, const QString& filename) {
 	QString outname = filename;
+	if (page == -1) { // Ctrl+S - do not ask for filename if asked before
+		outname = textEdit(ui.tabWidget->currentIndex())->filename();
+	}
+
 	page = page == -1 ? ui.tabWidget->currentIndex() : page;
 	OutputTextEdit* edit = textEdit(page);
 
