@@ -147,7 +147,8 @@ void DisplayerToolSelect::reorderSelection(int oldNum, int newNum) {
 void DisplayerToolSelect::saveSelection(NumberedDisplayerSelection* selection) {
 	QString title = selection ? _("Save Selection Image") : _("Save Page Image");
 	QString initialFilename = selection ? _("selection.png") : _("page.png");
-	QString filename = FileDialogs::saveDialog(title, initialFilename, "outputdir", QString("%1 (*.png)").arg(_("PNG Images")), true);
+	QString filter = QString("%1 (*.png);;%2 (*.jpg)").arg(_("PNG Images")).arg(_("JPG Images"));
+	QString filename = FileDialogs::saveDialog(title, initialFilename, "outputdir", filter, true);
 	if (!filename.isEmpty()) {
 		QRectF rect = selection ? selection->rect() : m_displayer->getSceneBoundingRect();
 		QImage img = m_displayer->getImage(rect);
