@@ -83,6 +83,7 @@ private slots:
 private:
 	int m_number;
 	void contextMenuEvent(QGraphicsSceneContextMenuEvent* event) override;
+	void mousePressEvent(QGraphicsSceneMouseEvent* event) override;
 	void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) override;
 };
 

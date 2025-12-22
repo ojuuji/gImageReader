@@ -265,6 +265,16 @@ void NumberedDisplayerSelection::contextMenuEvent(QGraphicsSceneContextMenuEvent
 	}
 }
 
+void NumberedDisplayerSelection::mousePressEvent(QGraphicsSceneMouseEvent* event) {
+	if (event->modifiers() & Qt::ControlModifier) {
+		static_cast<DisplayerToolSelect*> (m_tool)->removeSelection(m_number);
+		event->accept();
+	}
+	else {
+		DisplayerSelection::mousePressEvent(event);
+	}
+}
+
 void NumberedDisplayerSelection::reorderSelection(int newNumber) {
 	static_cast<DisplayerToolSelect*> (m_tool)->reorderSelection(m_number, newNumber);
 }
