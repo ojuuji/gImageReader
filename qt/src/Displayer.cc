@@ -678,15 +678,31 @@ void DisplayerSelection::paint(QPainter* painter, const QStyleOptionGraphicsItem
 	painter->setRenderHint(QPainter::Antialiasing, true);
 }
 
+Qt::Edges DisplayerSelection::hitTest(QPointF p) {
+	Qt::Edges edges;
+	QPointF center = (m_anchor + m_point) / 2;
+	double tol = 10.0 / m_tool->getDisplayer()->getCurrentScale();
+	if (p.x() > center.x() && std::abs(m_point.x() - p.x()) < tol) {
+		edges |= Qt::RightEdge;
+	} else if (p.x() < center.x() && std::abs(m_anchor.x() - p.x()) < tol) {
+		edges |= Qt::LeftEdge;
+	}
+	if (p.y() > center.y() && std::abs(m_point.y() - p.y()) < tol) {
+		edges |= Qt::BottomEdge;
+	} else if (p.y() < center.y() && std::abs(m_anchor.y() - p.y()) < tol) {
+		edges |= Qt::TopEdge;
+	}
+	return edges;
+}
+
 void DisplayerSelection::hoverMoveEvent(QGraphicsSceneHoverEvent* event) {
 	QPointF p = event->pos();
-	QRectF r = rect();
-	double tol = 10.0 / m_tool->getDisplayer()->getCurrentScale();
+	Qt::Edges edges = hitTest(p);
 
-	bool left = std::abs(r.x() - p.x()) < tol;
-	bool right = std::abs(r.x() + r.width() - p.x()) < tol;
-	bool top = std::abs(r.y() - p.y()) < tol;
-	bool bottom = std::abs(r.y() + r.height() - p.y()) < tol;
+	bool left = edges & Qt::LeftEdge;
+	bool right = edges & Qt::RightEdge;
+	bool top = edges & Qt::TopEdge;
+	bool bottom = edges & Qt::BottomEdge;
 
 	if ((top && left) || (bottom && right)) {
 		setCursor(Qt::SizeFDiagCursor);
@@ -703,28 +719,28 @@ void DisplayerSelection::hoverMoveEvent(QGraphicsSceneHoverEvent* event) {
 
 void DisplayerSelection::mousePressEvent(QGraphicsSceneMouseEvent* event) {
 	QPointF p = event->pos();
-	double tol = 10.0 / m_tool->getDisplayer()->getCurrentScale();
+	Qt::Edges edges = hitTest(p);
 	m_resizeHandlers.clear();
 	m_mouseMoveOffset = QPointF(0.0, 0.0);
-	if (std::abs(m_point.x() - p.x()) < tol) {   // pointx
+	if (edges & Qt::RightEdge) {   // pointx
 		m_resizeHandlers.append(resizePointX);
-		m_mouseMoveOffset.setX(event->pos().x() - m_point.x());
-	} else if (std::abs(m_anchor.x() - p.x()) < tol) {   // anchorx
+		m_mouseMoveOffset.setX(p.x() - m_point.x());
+	} else if (edges & Qt::LeftEdge) {   // anchorx
 		m_resizeHandlers.append(resizeAnchorX);
-		m_mouseMoveOffset.setX(event->pos().x() - m_anchor.x());
+		m_mouseMoveOffset.setX(p.x() - m_anchor.x());
 	}
-	if (std::abs(m_point.y() - p.y()) < tol) {   // pointy
+	if (edges & Qt::BottomEdge) {   // pointy
 		m_resizeHandlers.append(resizePointY);
-		m_mouseMoveOffset.setY(event->pos().y() - m_point.y());
-	} else if (std::abs(m_anchor.y() - p.y()) < tol) {   // anchory
+		m_mouseMoveOffset.setY(p.y() - m_point.y());
+	} else if (edges & Qt::TopEdge) {   // anchory
 		m_resizeHandlers.append(resizeAnchorY);
-		m_mouseMoveOffset.setY(event->pos().y() - m_anchor.y());
+		m_mouseMoveOffset.setY(p.y() - m_anchor.y());
 	}
 	if (!m_resizeHandlers.empty()) {
 		event->accept();
 	} else if (event->button() == Qt::LeftButton) {
 		m_translating = true;
-		m_mouseMoveOffset = QPointF(p.x(), p.y());
+		m_mouseMoveOffset = p;
 		event->accept();
 	} else {
 		event->ignore();

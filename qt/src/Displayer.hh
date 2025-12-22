@@ -217,6 +217,8 @@ private:
 	QPointF m_mouseMoveOffset;
 	bool m_translating = false;
 
+	Qt::Edges hitTest(QPointF p);
+
 	void hoverMoveEvent(QGraphicsSceneHoverEvent* event) override;
 	void mouseMoveEvent(QGraphicsSceneMouseEvent* event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent* event) override;
