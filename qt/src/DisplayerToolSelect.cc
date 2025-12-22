@@ -48,7 +48,7 @@ DisplayerToolSelect::~DisplayerToolSelect() {
 void DisplayerToolSelect::mousePressEvent(QMouseEvent* event) {
 	if (event->button() == Qt::LeftButton &&  m_curSel == nullptr) {
 		if ((event->modifiers() & Qt::ControlModifier) == 0) {
-			clearSelections();
+			return;
 		}
 		m_curSel = new NumberedDisplayerSelection(this, 1 + m_selections.size(), m_displayer->mapToSceneClamped(event->pos()));
 		m_curSel->setZValue(1 + m_selections.size());
