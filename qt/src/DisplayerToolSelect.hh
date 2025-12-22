@@ -33,6 +33,7 @@ class DisplayerToolSelect : public DisplayerTool {
 public:
 	DisplayerToolSelect(Displayer* displayer, QObject* parent = 0);
 	~DisplayerToolSelect();
+	void contextMenuEvent(QContextMenuEvent* event) override;
 	void mousePressEvent(QMouseEvent* event) override;
 	void mouseMoveEvent(QMouseEvent* event) override;
 	void mouseReleaseEvent(QMouseEvent* event) override;

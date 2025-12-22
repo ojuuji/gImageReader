@@ -470,6 +470,14 @@ void Displayer::resizeEvent(QResizeEvent* event) {
 	}
 }
 
+void Displayer::contextMenuEvent(QContextMenuEvent *event) {
+	event->ignore();
+	QGraphicsView::contextMenuEvent(event);
+	if (!event->isAccepted() && m_tool && m_currentSource) {
+		m_tool->contextMenuEvent(event);
+	}
+}
+
 void Displayer::keyPressEvent(QKeyEvent* event) {
 	if (event->key() == Qt::Key_PageUp) {
 		ui.spinBoxPage->setValue(ui.spinBoxPage->value() - 1);

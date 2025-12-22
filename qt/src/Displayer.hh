@@ -92,6 +92,7 @@ private:
 	QTimer m_renderTimer;
 	QTransform m_viewportTransform;
 
+	void contextMenuEvent(QContextMenuEvent *event) override;
 	void keyPressEvent(QKeyEvent* event) override;
 	void mousePressEvent(QMouseEvent* event) override;
 	void mouseMoveEvent(QMouseEvent* event) override;
@@ -142,6 +143,7 @@ class DisplayerTool : public QObject {
 public:
 	DisplayerTool(Displayer* displayer, QObject* parent = 0) : QObject(parent), m_displayer(displayer) {}
 	virtual ~DisplayerTool() {}
+	virtual void contextMenuEvent(QContextMenuEvent* /*event*/) {}
 	virtual void mousePressEvent(QMouseEvent* /*event*/) {}
 	virtual void mouseMoveEvent(QMouseEvent* /*event*/) {}
 	virtual void mouseReleaseEvent(QMouseEvent* /*event*/) {}

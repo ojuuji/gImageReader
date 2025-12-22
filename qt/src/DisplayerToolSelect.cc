@@ -45,6 +45,17 @@ DisplayerToolSelect::~DisplayerToolSelect() {
 	clearSelections();
 }
 
+void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
+	QMenu menu;
+	QAction* clearAction = new QAction(QIcon::fromTheme("edit-delete"), _("Clear selection"), &menu);
+	clearAction->setEnabled(!m_selections.isEmpty());
+	menu.addActions(QList<QAction*>() << clearAction);
+	QAction* selected = menu.exec(event->globalPos());
+	if (selected == clearAction) {
+		clearSelections();
+	}
+}
+
 void DisplayerToolSelect::mousePressEvent(QMouseEvent* event) {
 	if (event->button() == Qt::LeftButton &&  m_curSel == nullptr) {
 		if ((event->modifiers() & Qt::ControlModifier) == 0) {
