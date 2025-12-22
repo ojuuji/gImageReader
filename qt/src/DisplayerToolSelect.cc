@@ -49,10 +49,13 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 	QMenu menu;
 	QAction* clearAction = new QAction(QIcon::fromTheme("edit-delete"), _("Clear selection"), &menu);
 	clearAction->setEnabled(!m_selections.isEmpty());
-	menu.addActions(QList<QAction*>() << clearAction);
+	QAction* saveAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save page as image"), &menu);
+	menu.addActions(QList<QAction*>() << clearAction << saveAction);
 	QAction* selected = menu.exec(event->globalPos());
 	if (selected == clearAction) {
 		clearSelections();
+	} else if (selected == saveAction) {
+		saveSelection();
 	}
 }
 
@@ -142,9 +145,12 @@ void DisplayerToolSelect::reorderSelection(int oldNum, int newNum) {
 }
 
 void DisplayerToolSelect::saveSelection(NumberedDisplayerSelection* selection) {
-	QImage img = m_displayer->getImage(selection->rect());
-	QString filename = FileDialogs::saveDialog(_("Save Selection Image"), _("selection.png"), "outputdir", QString("%1 (*.png)").arg(_("PNG Images")), true);
+	QString title = selection ? _("Save Selection Image") : _("Save Page Image");
+	QString initialFilename = selection ? _("selection.png") : _("page.png");
+	QString filename = FileDialogs::saveDialog(title, initialFilename, "outputdir", QString("%1 (*.png)").arg(_("PNG Images")), true);
 	if (!filename.isEmpty()) {
+		QRectF rect = selection ? selection->rect() : m_displayer->getSceneBoundingRect();
+		QImage img = m_displayer->getImage(rect);
 		img.save(filename);
 	}
 }
