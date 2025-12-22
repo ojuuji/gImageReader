@@ -98,11 +98,17 @@ OutputEditorText::OutputEditorText() {
 	ADD_SETTING(ActionSetting("keepparagraphs", ui.actionOutputPostprocKeepParagraphs, true));
 	ADD_SETTING(ActionSetting("drawwhitespace", ui.actionOutputPostprocDrawWhitespace));
 	ADD_SETTING(VarSetting<QStringList> ("recenttxtitems"));
+	ADD_SETTING(VarSetting<bool> ("spellcheck", true));
+
+	m_spell.setSpellingEnabled(ConfigSettings::get<VarSetting<bool>> ("spellcheck")->getValue());
 
 	setFont();
 }
 
 OutputEditorText::~OutputEditorText() {
+	// spellingEnabled has no signal so just remember its value at the end
+	ConfigSettings::get<VarSetting<bool>> ("spellcheck")->setValue(m_spell.getSpellingEnabled());
+
 	delete m_widget;
 }
 
