@@ -28,6 +28,8 @@
 #define USE_STD_NAMESPACE
 #include <tesseract/baseapi.h>
 #undef USE_STD_NAMESPACE
+#include <QDir>
+#include <QFileInfo>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMenu>
@@ -49,12 +51,15 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 	QMenu menu;
 	QAction* clearAction = new QAction(QIcon::fromTheme("edit-delete"), _("Clear selection"), &menu);
 	clearAction->setEnabled(!m_selections.isEmpty());
-	QAction* saveAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save page as image"), &menu);
-	menu.addActions(QList<QAction*>() << clearAction << saveAction);
+	QAction* saveSelectionsAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save selections as images"), &menu);
+	QAction* savePageAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save page as image"), &menu);
+	menu.addActions(QList<QAction*>() << clearAction << saveSelectionsAction << savePageAction);
 	QAction* selected = menu.exec(event->globalPos());
 	if (selected == clearAction) {
 		clearSelections();
-	} else if (selected == saveAction) {
+	} else if (selected == saveSelectionsAction) {
+		saveAllSelections();
+	} else if (selected == savePageAction) {
 		saveSelection();
 	}
 }
@@ -153,6 +158,25 @@ void DisplayerToolSelect::saveSelection(NumberedDisplayerSelection* selection) {
 		QRectF rect = selection ? selection->rect() : m_displayer->getSceneBoundingRect();
 		QImage img = m_displayer->getImage(rect);
 		img.save(filename);
+	}
+}
+
+void DisplayerToolSelect::saveAllSelections() {
+	QString filter = QString("%1 (*.png);;%2 (*.jpg)").arg(_("PNG Images")).arg(_("JPG Images"));
+	QString filename = FileDialogs::saveDialog(_("Save Selections Images"), _("selection.png"), "outputdir", filter, false);
+	if (!filename.isEmpty()) {
+		QFileInfo fi(filename);
+		QString baseName = fi.completeBaseName();
+		QString ext = fi.suffix();
+		int width = QString::number(m_selections.size()).length();
+		int index = 0;
+		for (NumberedDisplayerSelection* sel : m_selections) {
+			QImage img = m_displayer->getImage(sel->rect());
+			auto imgFileName = QString("%1-%2.%3").arg(baseName).arg(index, width, 10, QChar('0')).arg(ext);
+			auto path = fi.dir().absoluteFilePath(imgFileName);
+			img.save(path);
+			index++;
+		}
 	}
 }
 

@@ -63,6 +63,7 @@ private:
 	void removeSelection(int num);
 	void reorderSelection(int oldNum, int newNum);
 	void saveSelection(NumberedDisplayerSelection* selection = nullptr);
+	void saveAllSelections();
 	void updateRecognitionModeLabel();
 	void autodetectLayout(bool noDeskew = false);
 };
