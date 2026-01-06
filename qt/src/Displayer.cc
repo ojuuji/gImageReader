@@ -682,14 +682,14 @@ Qt::Edges DisplayerSelection::hitTest(QPointF p) {
 	Qt::Edges edges;
 	QPointF center = (m_anchor + m_point) / 2;
 	double tol = 10.0 / m_tool->getDisplayer()->getCurrentScale();
-	if (p.x() > center.x() && std::abs(m_point.x() - p.x()) < tol) {
+	if (p.x() > center.x() && std::abs(qMax(m_anchor.x(), m_point.x()) - p.x()) < tol) {
 		edges |= Qt::RightEdge;
-	} else if (p.x() < center.x() && std::abs(m_anchor.x() - p.x()) < tol) {
+	} else if (p.x() < center.x() && std::abs(qMin(m_anchor.x(), m_point.x()) - p.x()) < tol) {
 		edges |= Qt::LeftEdge;
 	}
-	if (p.y() > center.y() && std::abs(m_point.y() - p.y()) < tol) {
+	if (p.y() > center.y() && std::abs(qMax(m_anchor.y(), m_point.y()) - p.y()) < tol) {
 		edges |= Qt::BottomEdge;
-	} else if (p.y() < center.y() && std::abs(m_anchor.y() - p.y()) < tol) {
+	} else if (p.y() < center.y() && std::abs(qMin(m_anchor.y(), m_point.y()) - p.y()) < tol) {
 		edges |= Qt::TopEdge;
 	}
 	return edges;
@@ -723,18 +723,18 @@ void DisplayerSelection::mousePressEvent(QGraphicsSceneMouseEvent* event) {
 	m_resizeHandlers.clear();
 	m_mouseMoveOffset = QPointF(0.0, 0.0);
 	if (edges & Qt::RightEdge) {   // pointx
-		m_resizeHandlers.append(resizePointX);
-		m_mouseMoveOffset.setX(p.x() - m_point.x());
+		m_resizeHandlers.append(m_point.x() > m_anchor.x() ? resizePointX : resizeAnchorX);
+		m_mouseMoveOffset.setX(p.x() - qMax(m_anchor.x(), m_point.x()));
 	} else if (edges & Qt::LeftEdge) {   // anchorx
-		m_resizeHandlers.append(resizeAnchorX);
-		m_mouseMoveOffset.setX(p.x() - m_anchor.x());
+		m_resizeHandlers.append(m_point.x() > m_anchor.x() ? resizeAnchorX : resizePointX);
+		m_mouseMoveOffset.setX(p.x() - qMin(m_anchor.x(), m_point.x()));
 	}
 	if (edges & Qt::BottomEdge) {   // pointy
-		m_resizeHandlers.append(resizePointY);
-		m_mouseMoveOffset.setY(p.y() - m_point.y());
+		m_resizeHandlers.append(m_point.y() > m_anchor.y() ? resizePointY : resizeAnchorY);
+		m_mouseMoveOffset.setY(p.y() - qMax(m_anchor.y(), m_point.y()));
 	} else if (edges & Qt::TopEdge) {   // anchory
-		m_resizeHandlers.append(resizeAnchorY);
-		m_mouseMoveOffset.setY(p.y() - m_anchor.y());
+		m_resizeHandlers.append(m_point.y() > m_anchor.y() ? resizeAnchorY : resizePointY);
+		m_mouseMoveOffset.setY(p.y() - qMin(m_anchor.y(), m_point.y()));
 	}
 	if (!m_resizeHandlers.empty()) {
 		event->accept();
