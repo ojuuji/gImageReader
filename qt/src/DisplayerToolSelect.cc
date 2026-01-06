@@ -64,15 +64,86 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 	}
 }
 
+QRectF DisplayerToolSelect::findBoundingRect(const QPoint& pos) {
+	const int maxColorDiff = 20;
+	const int expandByPx = 3;
+
+	QPoint start = (m_displayer->mapToSceneClamped(pos) - m_displayer->getSceneBoundingRect().topLeft()).toPoint();
+	QImage img = m_displayer->getImage(m_displayer->getSceneBoundingRect());
+	if (!img.rect().contains(start)) {
+		return QRect();
+	}
+
+	QColor bgColor = img.pixelColor(expandByPx, expandByPx);
+
+	QSet<QPoint> visited;
+	QQueue<QPoint> queue;
+	queue.enqueue(start);
+
+	int minX = start.x();
+	int maxX = start.x();
+	int minY = start.y();
+	int maxY = start.y();
+
+	while (!queue.isEmpty()) {
+		QPoint p = queue.dequeue();
+		if (visited.contains(p)) {
+			continue;
+		}
+		visited.insert(p);
+
+		QColor c = img.pixelColor(p);
+		if (qAbs(c.red() - bgColor.red()) < maxColorDiff
+				&& qAbs(c.green() - bgColor.green()) < maxColorDiff
+				&& qAbs(c.blue() - bgColor.blue()) < maxColorDiff) {
+			continue; // stop at background
+		}
+
+		// Update bounding box
+		minX = qMin(minX, p.x());
+		maxX = qMax(maxX, p.x());
+		minY = qMin(minY, p.y());
+		maxY = qMax(maxY, p.y());
+
+		// Add neighbors (4-connectivity)
+		if (p.x() > 0) {
+			queue.enqueue(QPoint(p.x() - 1, p.y()));
+		}
+		if (p.x() < img.width() - 1) {
+			queue.enqueue(QPoint(p.x() + 1, p.y()));
+		}
+		if (p.y() > 0) {
+			queue.enqueue(QPoint(p.x(), p.y() - 1));
+		}
+		if (p.y() < img.height() - 1) {
+			queue.enqueue(QPoint(p.x(), p.y() + 1));
+		}
+	}
+
+	QRectF rect(QPointF(minX, minY), QPointF(maxX, maxY));
+	rect.translate(m_displayer->getSceneBoundingRect().topLeft());
+	rect.adjust(-expandByPx, -expandByPx, expandByPx + 1, expandByPx + 1);
+
+	return rect;
+}
+
 void DisplayerToolSelect::mousePressEvent(QMouseEvent* event) {
 	if (event->button() == Qt::LeftButton &&  m_curSel == nullptr) {
-		if ((event->modifiers() & Qt::ControlModifier) == 0) {
-			return;
+		if (event->modifiers() & Qt::ControlModifier) {
+			m_curSel = new NumberedDisplayerSelection(this, 1 + m_selections.size(), m_displayer->mapToSceneClamped(event->pos()));
+			m_curSel->setZValue(1 + m_selections.size());
+			m_displayer->scene()->addItem(m_curSel);
+			event->accept();
+		} else if (event->modifiers() & Qt::AltModifier) {
+			QRectF rect = findBoundingRect(event->pos());
+			if (rect.width() > 10.0 && rect.height() > 10.0) {
+				m_selections.append(new NumberedDisplayerSelection(this, 1 + m_selections.size(), rect.topLeft()));
+				m_selections.back()->setPoint(rect.bottomRight());
+				m_displayer->scene()->addItem(m_selections.back());
+				updateRecognitionModeLabel();
+			}
+			event->accept();
 		}
-		m_curSel = new NumberedDisplayerSelection(this, 1 + m_selections.size(), m_displayer->mapToSceneClamped(event->pos()));
-		m_curSel->setZValue(1 + m_selections.size());
-		m_displayer->scene()->addItem(m_curSel);
-		event->accept();
 	}
 }
 

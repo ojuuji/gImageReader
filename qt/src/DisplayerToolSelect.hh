@@ -59,6 +59,7 @@ private:
 	NumberedDisplayerSelection* m_curSel = nullptr;
 	QList<NumberedDisplayerSelection*> m_selections;
 
+	QRectF findBoundingRect(const QPoint& start);
 	void clearSelections();
 	void removeSelection(int num);
 	void reorderSelection(int oldNum, int newNum);
