@@ -65,13 +65,13 @@
    <item row="16" column="0" colspan="3">
     <widget class="QTableWidget" name="tableWidgetAdditionalLang">
      <property name="horizontalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
+      <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
      </property>
      <property name="editTriggers">
-      <set>QAbstractItemView::DoubleClicked</set>
+      <set>QAbstractItemView::EditTrigger::DoubleClicked</set>
      </property>
      <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectRows</enum>
+      <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
      </property>
      <attribute name="horizontalHeaderHighlightSections">
       <bool>false</bool>
@@ -116,7 +116,7 @@
    <item row="7" column="0" colspan="3">
     <widget class="Line" name="line_2">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
     </widget>
    </item>
@@ -130,13 +130,13 @@
    <item row="14" column="0" colspan="3">
     <widget class="QTableWidget" name="tableWidgetPredefLang">
      <property name="horizontalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
+      <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
      </property>
      <property name="editTriggers">
-      <set>QAbstractItemView::NoEditTriggers</set>
+      <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
      </property>
      <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectRows</enum>
+      <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
      </property>
      <attribute name="horizontalHeaderHighlightSections">
       <bool>false</bool>
@@ -174,7 +174,7 @@
    <item row="11" column="0" colspan="3">
     <widget class="Line" name="line">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
     </widget>
    </item>
@@ -219,8 +219,7 @@
          <string>Add</string>
         </property>
         <property name="icon">
-         <iconset theme="list-add">
-          <normaloff>.</normaloff>.</iconset>
+         <iconset theme="list-add"/>
         </property>
        </widget>
       </item>
@@ -239,15 +238,14 @@
          <string>Remove</string>
         </property>
         <property name="icon">
-         <iconset theme="list-remove">
-          <normaloff>.</normaloff>.</iconset>
+         <iconset theme="list-remove"/>
         </property>
        </widget>
       </item>
       <item>
        <spacer name="horizontalSpacer">
         <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+         <enum>Qt::Orientation::Horizontal</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
@@ -270,10 +268,10 @@
    <item row="21" column="0" colspan="3">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Help|QDialogButtonBox::Ok</set>
+      <set>QDialogButtonBox::StandardButton::Help|QDialogButtonBox::StandardButton::Ok</set>
      </property>
     </widget>
    </item>
@@ -335,8 +333,7 @@
          <string>OK</string>
         </property>
         <property name="icon">
-         <iconset theme="dialog-ok">
-          <normaloff>.</normaloff>.</iconset>
+         <iconset theme="dialog-ok"/>
         </property>
        </widget>
       </item>
@@ -346,8 +343,7 @@
          <string>Cancel</string>
         </property>
         <property name="icon">
-         <iconset theme="dialog-cancel">
-          <normaloff>.</normaloff>.</iconset>
+         <iconset theme="dialog-cancel"/>
         </property>
        </widget>
       </item>

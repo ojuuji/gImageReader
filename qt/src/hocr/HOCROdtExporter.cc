@@ -289,7 +289,7 @@ void HOCROdtExporter::writeFontFaceDecls(QSet<QString>& families, const HOCRItem
 	}
 }
 
-void HOCROdtExporter::writeFontStyles(QMap<QString, QMap<double, QString >> & styles, const HOCRItem* item, QXmlStreamWriter& writer, int& counter) {
+void HOCROdtExporter::writeFontStyles(QMap<QString, QMap<double, QString >>& styles, const HOCRItem* item, QXmlStreamWriter& writer, int& counter) {
 	if (!item->isEnabled()) {
 		return;
 	}
@@ -314,8 +314,7 @@ void HOCROdtExporter::writeFontStyles(QMap<QString, QMap<double, QString >> & st
 
 			styles[fontKey].insert(item->fontSize(), styleName);
 		}
-	}
-	else {
+	} else {
 		for (const HOCRItem* child : item->children()) {
 			writeFontStyles(styles, child, writer, counter);
 		}

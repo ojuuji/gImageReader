@@ -40,8 +40,7 @@ QStringList openDialog(const QString& title, const QString& initialDirectory, co
 	QStringList filenames;
 	if (multiple) {
 		filenames.append(QFileDialog::getOpenFileNames(parent, title, initialDir, filter));
-	}
-	else {
+	} else {
 		QString filename = QFileDialog::getOpenFileName(parent, title, initialDir, filter);
 		if (!filename.isEmpty()) {
 			filenames.append(filename);

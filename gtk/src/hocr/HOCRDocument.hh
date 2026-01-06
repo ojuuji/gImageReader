@@ -200,7 +200,7 @@ public:
 	Glib::ustring getTitleAttribute(const Glib::ustring& key) const;
 	std::map<Glib::ustring, Glib::ustring> getAllAttributes() const;
 	std::map<Glib::ustring, Glib::ustring> getAttributes(const std::vector<Glib::ustring>& names) const;
-	void getPropagatableAttributes(std::map<Glib::ustring, std::map<Glib::ustring, std::set<Glib::ustring >>> & occurrences) const;
+	void getPropagatableAttributes(std::map<Glib::ustring, std::map<Glib::ustring, std::set<Glib::ustring >>>& occurrences) const;
 	Glib::ustring toHtml(int indent = 0) const;
 	std::pair<double, double> baseLine() const;
 	Glib::ustring fontFamily() const {

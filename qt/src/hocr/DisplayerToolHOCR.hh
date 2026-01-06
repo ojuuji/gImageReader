@@ -20,6 +20,8 @@
 #ifndef DISPLAYERTOOLHOCR_HH
 #define DISPLAYERTOOLHOCR_HH
 
+#include <QModelIndex>
+
 #include "Displayer.hh"
 
 class DisplayerToolHOCR : public DisplayerTool {
@@ -42,21 +44,21 @@ public:
 		reset();
 	}
 	void reset() override {
-		setAction(ACTION_NONE, true);
+		setAction(ACTION_NONE, QModelIndex(), true);
 	}
 
 	void mousePressEvent(QMouseEvent* event) override;
 	void mouseMoveEvent(QMouseEvent* event) override;
 	void mouseReleaseEvent(QMouseEvent* event) override;
 
-	void setAction(Action action, bool clearSel = true);
+	void setAction(Action action, QModelIndex index, bool clearSel = true);
 	void setSelection(const QRect& rect, const QRect& minRect);
 	QImage getSelection(const QRect& rect) const;
 	void clearSelection();
 
 signals:
 	void displayedSourceChanged();
-	void bboxDrawn(QRect rect, int action);
+	void bboxDrawn(QRect rect, int action, QModelIndex index);
 	void bboxChanged(QRect rect);
 	void positionPicked(QPoint pos);
 	void actionChanged(int action);
@@ -64,6 +66,7 @@ signals:
 private:
 	DisplayerSelection* m_selection = nullptr;
 	Action m_currentAction = ACTION_NONE;
+	QModelIndex m_currentIndex;
 	bool m_pressed = false;
 
 private slots:

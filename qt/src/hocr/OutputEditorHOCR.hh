@@ -108,7 +108,7 @@ private:
 	void drawPreview(QPainter& painter, const HOCRItem* item);
 
 private slots:
-	void bboxDrawn(const QRect& bbox, int action);
+	void bboxDrawn(const QRect& bbox, int action, QModelIndex index);
 	void addPage(const QString& hocrText, HOCRReadSessionData data);
 	void expandItemClass() {
 		expandCollapseItemClass(true);

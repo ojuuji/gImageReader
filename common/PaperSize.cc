@@ -34,7 +34,7 @@ bool PaperSize::Size<T>::operator< (const Size<T>& val) {
 
 PaperSize::Size<double> PaperSize::getSize(PaperSize::Unit unit, const std::string& format, bool landscape) {
 	auto result = std::find_if(paperSizes.begin(), paperSizes.end(),
-	[&format](const std::pair<std::string, Size<int >> & val) { return val.first == format; });
+	[&format](const std::pair<std::string, Size<int >>& val) { return val.first == format; });
 	if (result == paperSizes.end()) {
 		return {0.0, 0.0};
 	}

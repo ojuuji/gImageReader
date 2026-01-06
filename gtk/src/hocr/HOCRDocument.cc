@@ -612,8 +612,7 @@ GType HOCRDocument::get_column_type_vfunc(int index) const {
 		return Glib::Value<bool>::value_type();
 	} else if (index == COLUMN_ICON) {
 		return Glib::Value<Glib::RefPtr<Gdk::Pixbuf >>::value_type();
-	}
-	else if (index == COLUMN_TEXT) {
+	} else if (index == COLUMN_TEXT) {
 		return Glib::Value<Glib::ustring>::value_type();
 	} else if (index == COLUMN_TOOLTIP) {
 		return Glib::Value<Glib::ustring>::value_type();
@@ -1050,7 +1049,7 @@ std::map<Glib::ustring, Glib::ustring> HOCRItem::getAttributes(const std::vector
 	return attrValues;
 }
 
-void HOCRItem::getPropagatableAttributes(std::map<Glib::ustring, std::map<Glib::ustring, std::set<Glib::ustring >>> & occurrences) const {
+void HOCRItem::getPropagatableAttributes(std::map<Glib::ustring, std::map<Glib::ustring, std::set<Glib::ustring >>>& occurrences) const {
 	static std::map<Glib::ustring, std::vector<Glib::ustring >> s_propagatableAttributes = {
 		{"ocr_line", {"title:baseline"}},
 		{"ocrx_word", {"lang", "title:x_fsize", "title:x_font", "bold", "italic"}}

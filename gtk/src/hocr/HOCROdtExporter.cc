@@ -387,7 +387,7 @@ void HOCROdtExporter::writeFontFaceDecls(std::set<Glib::ustring>& families, cons
 	}
 }
 
-void HOCROdtExporter::writeFontStyles(std::map<Glib::ustring, std::map<double, Glib::ustring >> & styles, const HOCRItem* item, xmlpp::Element* parentEl, int& counter) {
+void HOCROdtExporter::writeFontStyles(std::map<Glib::ustring, std::map<double, Glib::ustring >>& styles, const HOCRItem* item, xmlpp::Element* parentEl, int& counter) {
 	if (!item->isEnabled()) {
 		return;
 	}
@@ -418,8 +418,7 @@ void HOCROdtExporter::writeFontStyles(std::map<Glib::ustring, std::map<double, G
 
 			styles[fontKey].insert(std::make_pair(item->fontSize(), styleName));
 		}
-	}
-	else {
+	} else {
 		for (const HOCRItem* child : item->children()) {
 			writeFontStyles(styles, child, parentEl, counter);
 		}

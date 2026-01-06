@@ -218,12 +218,12 @@ void MainWindow::setMenuModel(const Glib::RefPtr<Gio::MenuModel>& menuModel) {
 	ui.menubuttonOptions->set_visible(true);
 }
 
-void MainWindow::openFiles(const std::vector<Glib::RefPtr<Gio::File >> & files) {
+void MainWindow::openFiles(const std::vector<Glib::RefPtr<Gio::File >>& files) {
 	std::vector<Glib::RefPtr<Gio::File >> hocrFiles;
 	std::vector<Glib::RefPtr<Gio::File >> otherFiles;
 	for (const Glib::RefPtr<Gio::File>& file : files) {
-		std::string filename = file->get_path();
-		if (Glib::ustring(filename.substr(filename.length() - 5)).lowercase() == ".html") {
+		Glib::ustring filename = file->get_path();
+		if (Utils::string_endswith(filename.lowercase(), ".html")) {
 			hocrFiles.push_back(file);
 		} else {
 			otherFiles.push_back(file);
@@ -332,8 +332,7 @@ void MainWindow::onSourceChanged() {
 		if (m_stateStack.back() == State::Idle) {
 			pushState(State::Normal, _("Ready"));
 		}
-	}
-	else {
+	} else {
 		if (m_stateStack.back() == State::Normal) {
 			popState();
 		}

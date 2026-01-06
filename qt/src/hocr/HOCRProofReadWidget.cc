@@ -520,11 +520,9 @@ void HOCRProofReadWidget::showShortcutsDialog() {
 QString HOCRProofReadWidget::confidenceStyle(int wconf) const {
 	if (wconf < 70) {
 		return "background: #ffb2b2;";
-	}
-	else if (wconf < 80) {
+	} else if (wconf < 80) {
 		return "background: #ffdab0;";
-	}
-	else if (wconf < 90) {
+	} else if (wconf < 90) {
 		return "background: #fffdb4;";
 	}
 	return QString();

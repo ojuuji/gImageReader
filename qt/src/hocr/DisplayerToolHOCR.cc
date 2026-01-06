@@ -70,17 +70,17 @@ void DisplayerToolHOCR::mouseReleaseEvent(QMouseEvent* event) {
 			clearSelection();
 		} else {
 			QRect r = m_selection->rect().translated(-m_displayer->getSceneBoundingRect().toRect().topLeft()).toRect();
-			emit bboxDrawn(r, m_currentAction);
+			emit bboxDrawn(r, m_currentAction, m_currentIndex);
 		}
 		event->accept();
 	} else {
 		QPoint p = m_displayer->mapToSceneClamped(event->pos()).toPoint();
 		emit positionPicked(p);
 	}
-	setAction(ACTION_NONE, false);
+	setAction(ACTION_NONE, QModelIndex(), false);
 }
 
-void DisplayerToolHOCR::setAction(Action action, bool clearSel) {
+void DisplayerToolHOCR::setAction(Action action, QModelIndex index, bool clearSel) {
 	if (action != m_currentAction) {
 		emit actionChanged(action);
 	}
@@ -88,6 +88,7 @@ void DisplayerToolHOCR::setAction(Action action, bool clearSel) {
 		clearSelection();
 	}
 	m_currentAction = action;
+	m_currentIndex = index;
 	if (m_currentAction >= ACTION_DRAW_GRAPHIC_RECT && m_currentAction <= ACTION_DRAW_WORD_RECT) {
 		m_displayer->setCursor(Qt::CrossCursor);
 	} else {
@@ -96,7 +97,7 @@ void DisplayerToolHOCR::setAction(Action action, bool clearSel) {
 }
 
 void DisplayerToolHOCR::setSelection(const QRect& rect, const QRect& minRect) {
-	setAction(ACTION_NONE, false);
+	setAction(ACTION_NONE, QModelIndex(), false);
 	QRect r = rect.translated(m_displayer->getSceneBoundingRect().toRect().topLeft());
 	QRect mr = minRect.translated(m_displayer->getSceneBoundingRect().toRect().topLeft());
 	if (!m_selection) {

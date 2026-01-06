@@ -818,18 +818,15 @@ void OutputEditorHOCR::bboxDrawn(const Geometry::Rectangle& bbox, int action) {
 		newElement = doc.create_root_node("div");
 		newElement->set_attribute("class", "ocr_graphic");
 		newElement->set_attribute("title", Glib::ustring::compose("bbox %1 %2 %3 %4", bbox.x, bbox.y, bbox.x + bbox.width, bbox.y + bbox.height));
-	}
-	else if (action == DisplayerToolHOCR::ACTION_DRAW_CAREA_RECT) {
+	} else if (action == DisplayerToolHOCR::ACTION_DRAW_CAREA_RECT) {
 		newElement = doc.create_root_node("div");
 		newElement->set_attribute("class", "ocr_carea");
 		newElement->set_attribute("title", Glib::ustring::compose("bbox %1 %2 %3 %4", bbox.x, bbox.y, bbox.x + bbox.width, bbox.y + bbox.height));
-	}
-	else if (action == DisplayerToolHOCR::ACTION_DRAW_PAR_RECT) {
+	} else if (action == DisplayerToolHOCR::ACTION_DRAW_PAR_RECT) {
 		newElement = doc.create_root_node("p");
 		newElement->set_attribute("class", "ocr_par");
 		newElement->set_attribute("title", Glib::ustring::compose("bbox %1 %2 %3 %4", bbox.x, bbox.y, bbox.x + bbox.width, bbox.y + bbox.height));
-	}
-	else if (action == DisplayerToolHOCR::ACTION_DRAW_LINE_RECT) {
+	} else if (action == DisplayerToolHOCR::ACTION_DRAW_LINE_RECT) {
 		newElement = doc.create_root_node("span");
 		newElement->set_attribute("class", "ocr_line");
 		std::set<Glib::ustring> propLineBaseline = propAttrs["ocrx_line"]["baseline"];

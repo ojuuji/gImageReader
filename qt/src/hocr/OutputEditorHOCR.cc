@@ -540,7 +540,7 @@ int OutputEditorHOCR::currentPage() {
 }
 
 void OutputEditorHOCR::showItemProperties(const QModelIndex& index, const QModelIndex& prev) {
-	m_tool->setAction(DisplayerToolHOCR::ACTION_NONE);
+	m_tool->setAction(DisplayerToolHOCR::ACTION_NONE, QModelIndex());
 	const HOCRItem* prevItem = m_document->itemAtIndex(prev);
 	ui.tableWidgetProperties->setRowCount(0);
 	ui.plainTextEditOutput->setPlainText("");
@@ -685,10 +685,9 @@ void OutputEditorHOCR::itemAttributeChanged(const QModelIndex& itemIndex, const 
 	}
 }
 
-void OutputEditorHOCR::bboxDrawn(const QRect& bbox, int action) {
+void OutputEditorHOCR::bboxDrawn(const QRect& bbox, int action, QModelIndex index) {
 	QDomDocument doc;
-	QModelIndex current = ui.treeViewHOCR->selectionModel()->currentIndex();
-	const HOCRItem* currentItem = m_document->itemAtIndex(current);
+	const HOCRItem* currentItem = m_document->itemAtIndex(index);
 	if (!currentItem) {
 		return;
 	}
@@ -699,18 +698,15 @@ void OutputEditorHOCR::bboxDrawn(const QRect& bbox, int action) {
 		newElement = doc.createElement("div");
 		newElement.setAttribute("class", "ocr_graphic");
 		newElement.setAttribute("title", QString("bbox %1 %2 %3 %4").arg(bbox.left()).arg(bbox.top()).arg(bbox.right()).arg(bbox.bottom()));
-	}
-	else if (action == DisplayerToolHOCR::ACTION_DRAW_CAREA_RECT) {
+	} else if (action == DisplayerToolHOCR::ACTION_DRAW_CAREA_RECT) {
 		newElement = doc.createElement("div");
 		newElement.setAttribute("class", "ocr_carea");
 		newElement.setAttribute("title", QString("bbox %1 %2 %3 %4").arg(bbox.left()).arg(bbox.top()).arg(bbox.right()).arg(bbox.bottom()));
-	}
-	else if (action == DisplayerToolHOCR::ACTION_DRAW_PAR_RECT) {
+	} else if (action == DisplayerToolHOCR::ACTION_DRAW_PAR_RECT) {
 		newElement = doc.createElement("p");
 		newElement.setAttribute("class", "ocr_par");
 		newElement.setAttribute("title", QString("bbox %1 %2 %3 %4").arg(bbox.left()).arg(bbox.top()).arg(bbox.right()).arg(bbox.bottom()));
-	}
-	else if (action == DisplayerToolHOCR::ACTION_DRAW_LINE_RECT) {
+	} else if (action == DisplayerToolHOCR::ACTION_DRAW_LINE_RECT) {
 		newElement = doc.createElement("span");
 		newElement.setAttribute("class", "ocr_line");
 		QSet<QString> propLineBaseline = propAttrs["ocrx_line"]["baseline"];
@@ -749,9 +745,9 @@ void OutputEditorHOCR::bboxDrawn(const QRect& bbox, int action) {
 	} else {
 		return;
 	}
-	QModelIndex index = m_document->addItem(current, newElement);
-	if (index.isValid()) {
-		ui.treeViewHOCR->selectionModel()->setCurrentIndex(index, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+	QModelIndex newIndex = m_document->addItem(index, newElement);
+	if (newIndex.isValid()) {
+		ui.treeViewHOCR->selectionModel()->setCurrentIndex(newIndex, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
 	}
 }
 
@@ -867,21 +863,21 @@ void OutputEditorHOCR::showTreeWidgetContextMenu(const QPoint& point) {
 		return;
 	}
 	if (clickedAction == actionAddGraphic) {
-		m_tool->setAction(DisplayerToolHOCR::ACTION_DRAW_GRAPHIC_RECT);
+		m_tool->setAction(DisplayerToolHOCR::ACTION_DRAW_GRAPHIC_RECT, index);
 	} else if (clickedAction == actionAddCArea) {
-		m_tool->setAction(DisplayerToolHOCR::ACTION_DRAW_CAREA_RECT);
+		m_tool->setAction(DisplayerToolHOCR::ACTION_DRAW_CAREA_RECT, index);
 	} else if (clickedAction == actionAddPar) {
-		m_tool->setAction(DisplayerToolHOCR::ACTION_DRAW_PAR_RECT);
+		m_tool->setAction(DisplayerToolHOCR::ACTION_DRAW_PAR_RECT, index);
 	} else if (clickedAction == actionAddLine) {
-		m_tool->setAction(DisplayerToolHOCR::ACTION_DRAW_LINE_RECT);
+		m_tool->setAction(DisplayerToolHOCR::ACTION_DRAW_LINE_RECT, index);
 	} else if (clickedAction == actionAddWord) {
-		m_tool->setAction(DisplayerToolHOCR::ACTION_DRAW_WORD_RECT);
+		m_tool->setAction(DisplayerToolHOCR::ACTION_DRAW_WORD_RECT, index);
 	} else if (clickedAction == actionSplit) {
 		QModelIndex newIndex = m_document->splitItem(index.parent(), index.row(), index.row());
 		ui.treeViewHOCR->selectionModel()->setCurrentIndex(newIndex, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
 		expandCollapseChildren(newIndex, true);
 	} else if (clickedAction == actionRemove) {
-		m_document->removeItem(ui.treeViewHOCR->selectionModel()->currentIndex());
+		m_document->removeItem(index);
 	} else if (clickedAction == actionExpand) {
 		expandCollapseChildren(index, true);
 	} else if (clickedAction == actionCollapse) {

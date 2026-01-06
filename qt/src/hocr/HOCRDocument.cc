@@ -937,7 +937,7 @@ QMap<QString, QString> HOCRItem::getAttributes(const QList<QString>& names = QLi
 }
 
 // ocr_class:attr_key:attr_values
-void HOCRItem::getPropagatableAttributes(QMap<QString, QMap<QString, QSet<QString >>> & occurrences) const {
+void HOCRItem::getPropagatableAttributes(QMap<QString, QMap<QString, QSet<QString >>>& occurrences) const {
 	static QMap<QString, QStringList> s_propagatableAttributes = {
 		{"ocr_line", {"title:baseline"}},
 		{"ocrx_word", {"lang", "title:x_fsize", "title:x_font", "bold", "italic"}}

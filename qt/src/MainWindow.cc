@@ -309,10 +309,15 @@ void MainWindow::popState() {
 
 void MainWindow::setState(State state) {
 	bool isIdle = state == State::Idle;
+	bool isBusy = state == State::Busy;
 	m_idleActions.setEnabled(!isIdle);
 	for (QWidget* widget : m_idleWidgets) {
 		widget->setEnabled(!isIdle);
 	}
+	ui.toolBarMain->setEnabled(!isBusy);
+	ui.dockWidgetSources->setEnabled(!isBusy);
+	ui.dockWidgetOutput->setEnabled(!isBusy);
+	ui.centralwidget->setEnabled(!isBusy);
 }
 
 void MainWindow::closeEvent(QCloseEvent* ev) {

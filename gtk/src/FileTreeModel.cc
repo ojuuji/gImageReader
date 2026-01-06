@@ -326,8 +326,7 @@ Gtk::TreeModelFlags FileTreeModel::get_flags_vfunc() const {
 GType FileTreeModel::get_column_type_vfunc(int index) const {
 	if (index == COLUMN_ICON) {
 		return Glib::Value<Glib::RefPtr<Gdk::Pixbuf >>::value_type();
-	}
-	else if (index == COLUMN_TEXT) {
+	} else if (index == COLUMN_TEXT) {
 		return Glib::Value<Glib::ustring>::value_type();
 	} else if (index == COLUMN_TOOLTIP) {
 		return Glib::Value<Glib::ustring>::value_type();
@@ -540,21 +539,30 @@ T FileTreeModel::NodeList<T>::take(T node) {
 	return nullptr;
 }
 
+int compare_filenames(const Glib::ustring& a, const Glib::ustring& b) {
+	auto ca = g_utf8_collate_key_for_filename(a.c_str(), -1);
+	auto cb = g_utf8_collate_key_for_filename(b.c_str(), -1);
+	auto r = strcmp(ca, cb);
+	g_free(ca);
+	g_free(cb);
+	return r;
+}
+
 template<class T>
 typename FileTreeModel::NodeList<T>::const_iterator FileTreeModel::NodeList<T>::find(const Glib::ustring& fileName) const {
-	auto it = std::lower_bound(this->begin(), this->end(), fileName, [](const T & a, const Glib::ustring & b) { return a->fileName.compare(b) < 0; });
+	auto it = std::lower_bound(this->begin(), this->end(), fileName, [](const T & a, const Glib::ustring & b) { return compare_filenames(a->fileName, b) < 0; });
 	return it == this->end() ? it : (*it)->fileName == fileName ? it : this->end();
 }
 
 template<class T>
 int FileTreeModel::NodeList<T>::insIndex(const Glib::ustring& fileName) const {
-	auto it = std::lower_bound(this->begin(), this->end(), fileName, [](const T & a, const Glib::ustring & b) { return a->fileName.compare(b) < 0; });
+	auto it = std::lower_bound(this->begin(), this->end(), fileName, [](const T & a, const Glib::ustring & b) { return compare_filenames(a->fileName, b) < 0; });
 	return std::distance(this->begin(), it);
 }
 
 template<class T>
 int FileTreeModel::NodeList<T>::index(T node) const {
-	auto it = std::lower_bound(this->begin(), this->end(), node->fileName, [](const T & a, const Glib::ustring & b) { return a->fileName.compare(b) < 0; });
+	auto it = std::lower_bound(this->begin(), this->end(), node->fileName, [](const T & a, const Glib::ustring & b) { return compare_filenames(a->fileName, b) < 0; });
 	return std::distance(this->begin(), it);
 }
 

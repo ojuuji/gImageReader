@@ -310,8 +310,7 @@ void RecognitionMenu::setMultiLanguage() {
 	Glib::ustring lang;
 	if (langs.empty()) {
 		lang = "eng+";
-	}
-	else {
+	} else {
 		for (const auto& pair : langs) {
 			lang += pair.first + "+";
 		}

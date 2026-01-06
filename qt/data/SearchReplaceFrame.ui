@@ -6,15 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>337</width>
-    <height>103</height>
+    <width>327</width>
+    <height>101</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string></string>
+   <string/>
   </property>
   <property name="frameShape">
-   <enum>QFrame::StyledPanel</enum>
+   <enum>QFrame::Shape::StyledPanel</enum>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <property name="leftMargin">
@@ -38,8 +38,7 @@
       <string>Substitutions</string>
      </property>
      <property name="icon">
-      <iconset theme="document-edit">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="document-edit"/>
      </property>
     </widget>
    </item>
@@ -56,8 +55,7 @@
       <string>Replace all</string>
      </property>
      <property name="icon">
-      <iconset theme="edit-find-replace">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="edit-find-replace"/>
      </property>
     </widget>
    </item>
@@ -74,8 +72,7 @@
       <string>Find previous</string>
      </property>
      <property name="icon">
-      <iconset theme="go-up">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="go-up"/>
      </property>
     </widget>
    </item>
@@ -85,8 +82,7 @@
       <string>Find next</string>
      </property>
      <property name="icon">
-      <iconset theme="go-down">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="go-down"/>
      </property>
     </widget>
    </item>
@@ -96,8 +92,7 @@
       <string>Replace</string>
      </property>
      <property name="icon">
-      <iconset theme="edit-find-replace">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="edit-find-replace"/>
      </property>
     </widget>
    </item>

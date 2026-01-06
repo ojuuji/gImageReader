@@ -25,9 +25,6 @@
 
 #include <pangomm.h>
 #include <poppler-document.h>
-#ifdef G_OS_UNIX
-#include <gdk/gdkwayland.h>
-#endif
 
 
 SourceManager::SourceManager(const Ui::MainWindow& _ui)
@@ -86,15 +83,7 @@ SourceManager::SourceManager(const Ui::MainWindow& _ui)
 	CONNECT(m_clipboard, owner_change, [this](GdkEventOwnerChange*) { ui.buttonSourcePaste->set_sensitive(m_clipboard->wait_is_image_available()); });
 	CONNECT(ui.buttonSourceFolder, clicked, [this] { addFolder(); });
 	CONNECT(ui.buttonSourcePaste, clicked, [this] { pasteClipboard(); });
-#ifdef G_OS_UNIX
-	if (GDK_IS_WAYLAND_WINDOW(MAIN->getWindow()->gobj())) {
-		ui.buttonSourceScreenshot->hide();
-	} else {
-		CONNECT(ui.buttonSourceScreenshot, clicked, [this] { takeScreenshot(); });
-	}
-#else
 	CONNECT(ui.buttonSourceScreenshot, clicked, [this] { takeScreenshot(); });
-#endif
 	CONNECT(ui.buttonSourcesRemove, clicked, [this] { removeSource(false); });
 	CONNECT(ui.buttonSourcesDelete, clicked, [this] { removeSource(true); });
 	CONNECT(ui.buttonSourcesClear, clicked, [this] { clearSources(); });
@@ -113,7 +102,7 @@ SourceManager::~SourceManager() {
 	clearSources();
 }
 
-int SourceManager::addSources(const std::vector<Glib::RefPtr<Gio::File >> & files, bool suppressWarnings) {
+int SourceManager::addSources(const std::vector<Glib::RefPtr<Gio::File >>& files, bool suppressWarnings) {
 	std::vector<Glib::ustring> failed;
 	int added = 0;
 	PdfWithTextAction textAction = suppressWarnings ? PdfWithTextAction::Add : PdfWithTextAction::Ask;
@@ -322,31 +311,96 @@ void SourceManager::pasteClipboard() {
 }
 
 void SourceManager::takeScreenshot() {
-	MAIN->getWindow()->iconify();
-	while (Gtk::Main::events_pending()) {
-		Gtk::Main::iteration();
-	}
-	Glib::signal_timeout().connect_once([this] {
-		Glib::RefPtr<Gdk::Window> root = Gdk::Window::get_default_root_window();
-		int x, y, w, h;
-		root->get_origin(x, y);
-		w = root->get_width();
-		h = root->get_height();
-		if (w == 0 || h == 0) {
+	if (Utils::isWaylandSession()) {
+		Glib::RefPtr<Gio::DBus::Proxy> portal = Gio::DBus::Proxy::create_for_bus_sync(
+		        Gio::DBus::BUS_TYPE_SESSION,
+		        "org.freedesktop.portal.Desktop",
+		        "/org/freedesktop/portal/desktop",
+		        "org.freedesktop.portal.Screenshot"
+		                                        );
+
+		if (!portal) {
+			Utils::messageBox(Gtk::MESSAGE_ERROR, _("Screenshot Error"), Glib::ustring::compose(_("Failed to take screenshot: %1"), _("xdg-desktop-portal not available")));
+			return;
+		}
+
+		std::vector<Glib::VariantBase> args;
+		args.push_back(Glib::Variant<Glib::ustring>::create(""));
+		args.push_back(Glib::Variant<std::map<Glib::ustring, Glib::Variant<bool>>>::create({{"interactive", Glib::Variant<bool>::create(true)}}));
+
+		auto result = portal->call_sync(
+		                  "Screenshot",
+		                  Glib::VariantContainerBase::create_tuple(args)
+		              );
+
+		Glib::ustring request_path = Glib::VariantBase::cast_dynamic<Glib::Variant<Glib::ustring>>(result.get_child(0)).get();
+
+		MAIN->pushState(MainWindow::State::Busy, _("Grabbing screenshot..."));
+		portal->get_connection()->signal_subscribe(
+		    sigc::mem_fun(*this, &SourceManager::onScreenshotResponse),
+		    "org.freedesktop.portal.Desktop",
+		    "org.freedesktop.portal.Request",
+		    "Response",
+		    request_path,
+		    ""
+		);
+	} else {
+		MAIN->getWindow()->iconify();
+		while (Gtk::Main::events_pending()) {
+			Gtk::Main::iteration();
+		}
+		Glib::signal_timeout().connect_once([this] {
+			Glib::RefPtr<Gdk::Window> root = Gdk::Window::get_default_root_window();
+			int x, y, w, h;
+			root->get_origin(x, y);
+			w = root->get_width();
+			h = root->get_height();
+			if (w == 0 || h == 0) {
+				MAIN->getWindow()->deiconify();
+				Utils::messageBox(Gtk::MESSAGE_ERROR, _("Screenshot Error"), _("Failed to take screenshot."));
+				return;
+			}
+			Glib::RefPtr<Gdk::Pixbuf> pixbuf = Gdk::Pixbuf::create(root, x, y, w, h);
 			MAIN->getWindow()->deiconify();
-			Utils::messageBox(Gtk::MESSAGE_ERROR, _("Screenshot Error"),  _("Failed to take screenshot."));
-			return;
-		}
-		Glib::RefPtr<Gdk::Pixbuf> pixbuf = Gdk::Pixbuf::create(root, x, y, w, h);
-		MAIN->getWindow()->deiconify();
-		if (!pixbuf) {
-			Utils::messageBox(Gtk::MESSAGE_ERROR, _("Screenshot Error"),  _("Failed to take screenshot."));
-			return;
-		}
-		++m_screenshotCount;
-		std::string displayname = Glib::ustring::compose(_("Screenshot %1"), m_screenshotCount);
-		savePixbuf(pixbuf, displayname);
-	}, 250);
+			if (!pixbuf) {
+				Utils::messageBox(Gtk::MESSAGE_ERROR, _("Screenshot Error"), _("Failed to take screenshot."));
+				return;
+			}
+			++m_screenshotCount;
+			std::string displayname = Glib::ustring::compose(_("Screenshot %1"), m_screenshotCount);
+			savePixbuf(pixbuf, displayname);
+		}, 250);
+	}
+}
+
+void SourceManager::onScreenshotResponse(const Glib::RefPtr<Gio::DBus::Connection>&,
+        const Glib::ustring&,
+        const Glib::ustring&,
+        const Glib::ustring&,
+        const Glib::ustring&,
+        const Glib::VariantContainerBase& parameters) {
+	MAIN->popState();
+	Glib::Variant<guint32> response_variant;
+	parameters.get_child(response_variant, 0);
+	if (response_variant.get() != 0) {
+		Utils::messageBox(Gtk::MESSAGE_ERROR, _("Screenshot Error"), Glib::ustring::compose(_("Failed to take screenshot: %1"), _("Cancelled or denied")));
+		return;
+	}
+
+	Glib::Variant<std::map<Glib::ustring, Glib::VariantBase>> result;
+	parameters.get_child(result, 1);
+	Glib::VariantBase uri_variant;
+	if (!result.lookup("uri", uri_variant)) {
+		Utils::messageBox(Gtk::MESSAGE_ERROR, _("Screenshot Error"), Glib::ustring::compose(_("Failed to take screenshot: %1"), _("Invalid screenshot URI")));
+		return;
+	}
+	Glib::ustring uri = Glib::VariantBase::cast_dynamic<Glib::Variant<Glib::ustring>>(uri_variant).get();
+
+	Glib::RefPtr<Gdk::Pixbuf> pixbuf = Gdk::Pixbuf::create_from_file(Glib::filename_from_uri(uri));
+	++m_screenshotCount;
+	std::string displayname = Glib::ustring::compose(_("Screenshot %1"), m_screenshotCount);
+	savePixbuf(pixbuf, displayname);
+	Gio::File::create_for_uri(uri)->remove();
 }
 
 void SourceManager::savePixbuf(const Glib::RefPtr<Gdk::Pixbuf>& pixbuf, const std::string& displayname) {

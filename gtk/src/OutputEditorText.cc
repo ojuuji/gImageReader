@@ -459,8 +459,7 @@ bool OutputEditorText::open(const std::string& filename) {
 		if (files.empty()) {
 			return false;
 		}
-	}
-	else {
+	} else {
 		try {
 			files.push_back(Gio::File::create_for_path(filename));
 		} catch (const Glib::Error&) {

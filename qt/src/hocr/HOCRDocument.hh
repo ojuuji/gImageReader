@@ -165,7 +165,7 @@ public:
 	}
 	QMap<QString, QString> getAllAttributes() const;
 	QMap<QString, QString> getAttributes(const QList<QString>& names) const;
-	void getPropagatableAttributes(QMap<QString, QMap<QString, QSet<QString >>> & occurrences) const;
+	void getPropagatableAttributes(QMap<QString, QMap<QString, QSet<QString >>>& occurrences) const;
 	QString toHtml(int indent = 0) const;
 	QPair<double, double> baseLine() const;
 	QString fontFamily() const {

@@ -19,6 +19,9 @@
 
 #include <memory>
 #include <QClipboard>
+#include <QDBusInterface>
+#include <QDBusReply>
+#include <QDBusConnection>
 #include <QDesktopServices>
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QDesktopWidget>
@@ -78,11 +81,7 @@ SourceManager::SourceManager(const UI_MainWindow& _ui)
 	connect(m_recentMenu, &QMenu::aboutToShow, this, &SourceManager::prepareRecentMenu);
 	connect(ui.actionSourceFolder, &QAction::triggered, this, &SourceManager::addFolder);
 	connect(ui.actionSourcePaste, &QAction::triggered, this, &SourceManager::pasteClipboard);
-	if (QGuiApplication::platformName() != "wayland") {
-		connect(ui.actionSourceScreenshot, &QAction::triggered, this, &SourceManager::takeScreenshot);
-	} else {
-		ui.actionSourceScreenshot->setVisible(false);
-	}
+	connect(ui.actionSourceScreenshot, &QAction::triggered, this, &SourceManager::takeScreenshot);
 	connect(ui.actionSourceRemove, &QAction::triggered, this, &SourceManager::removeSource);
 	connect(ui.actionSourceDelete, &QAction::triggered, this, &SourceManager::deleteSource);
 	connect(ui.actionSourceClear, &QAction::triggered, this, &SourceManager::clearSources);
@@ -332,27 +331,78 @@ void SourceManager::addSourceImage(const QImage& image) {
 }
 
 void SourceManager::takeScreenshot() {
-	MAIN->hide();
-	QApplication::processEvents();
-	QTimer* timer = new QTimer();
-	connect(timer, &QTimer::timeout, [this, timer] {
-		timer->deleteLater();
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-		QScreen* screen = QGuiApplication::primaryScreen();
-		QPixmap pixmap = screen ? screen->grabWindow() : QPixmap();
-#else
-		QPixmap pixmap = QGuiApplication::primaryScreen()->grabWindow(QApplication::desktop()->winId());
-#endif
-		MAIN->show();
-		if (pixmap.isNull()) {
-			QMessageBox::critical(MAIN, _("Screenshot Error"),  _("Failed to take screenshot."));
+	const QString platform = QGuiApplication::platformName();
+	if (platform.startsWith("wayland", Qt::CaseInsensitive)) {
+		QDBusInterface portal(
+		    "org.freedesktop.portal.Desktop",
+		    "/org/freedesktop/portal/desktop",
+		    "org.freedesktop.portal.Screenshot",
+		    QDBusConnection::sessionBus()
+		);
+
+		if (!portal.isValid()) {
+			QMessageBox::critical(MAIN, _("Screenshot Error"),  _("Failed to take screenshot: %1").arg(_("xdg-desktop-portal not available")));
 			return;
 		}
-		++m_screenshotCount;
-		QString displayname = _("Screenshot %1").arg(m_screenshotCount);
-		savePixmap(pixmap, displayname);
-	});
-	timer->start(250);
+
+		QVariantMap options;
+		options["interactive"] = true;
+
+		QDBusReply<QDBusObjectPath> reply = portal.call("Screenshot", QString(), options);
+
+		QDBusObjectPath requestPath = reply.value();
+
+		MAIN->pushState(MainWindow::State::Busy, _("Grabbing screenshot..."));
+		QDBusConnection::sessionBus().connect(
+		    "org.freedesktop.portal.Desktop",
+		    requestPath.path(),
+		    "org.freedesktop.portal.Request",
+		    "Response",
+		    this,
+		    SLOT(onScreenshotResponse(uint, QVariantMap))
+		);
+	} else {
+		MAIN->hide();
+		QApplication::processEvents();
+		QTimer* timer = new QTimer();
+		connect(timer, &QTimer::timeout, [this, timer] {
+			timer->deleteLater();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+			QScreen* screen = QGuiApplication::primaryScreen();
+			QPixmap pixmap = screen ? screen->grabWindow() : QPixmap();
+#else
+			QPixmap pixmap = QGuiApplication::primaryScreen()->grabWindow(QApplication::desktop()->winId());
+#endif
+			MAIN->show();
+			if (pixmap.isNull()) {
+				QMessageBox::critical(MAIN, _("Screenshot Error"),  _("Failed to take screenshot."));
+				return;
+			}
+			++m_screenshotCount;
+			QString displayname = _("Screenshot %1").arg(m_screenshotCount);
+			savePixmap(pixmap, displayname);
+		});
+		timer->start(250);
+	}
+}
+
+void SourceManager::onScreenshotResponse(uint response, const QVariantMap &results) {
+	MAIN->popState();
+	if (response != 0) {
+		QMessageBox::critical(MAIN, _("Screenshot Error"),  _("Failed to take screenshot: %1").arg(_("Cancelled or denied")));
+		return;
+	}
+
+	const QUrl uri(results.value("uri").toString());
+	if (!uri.isValid()) {
+		QMessageBox::critical(MAIN, _("Screenshot Error"),  _("Failed to take screenshot: %1").arg(_("Invalid screenshot URI")));
+		return;
+	}
+	QPixmap pixmap(uri.toLocalFile());
+	++m_screenshotCount;
+	QString displayname = _("Screenshot %1").arg(m_screenshotCount);
+	savePixmap(pixmap, displayname);
+	QFile(uri.toLocalFile()).remove();
 }
 
 void SourceManager::savePixmap(const QPixmap& pixmap, const QString& displayname) {

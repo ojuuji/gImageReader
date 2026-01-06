@@ -57,8 +57,7 @@ void HOCRTextExporter::printItem(std::ofstream& outputStream, const HOCRItem* it
 		if (!lastChild) {
 			outputStream << " ";
 		}
-	}
-	else {
+	} else {
 		for (int i = 0, n = item->children().size(); i < n; ++i) {
 			printItem(outputStream, item->children() [i], i == n - 1);
 		}

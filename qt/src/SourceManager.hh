@@ -105,6 +105,7 @@ private slots:
 	void prepareRecentMenu();
 	void removeSource(bool deleteFile = false);
 	void takeScreenshot();
+	void onScreenshotResponse(uint response, const QVariantMap &results);
 };
 
 #endif // SOURCEMANAGER_HH

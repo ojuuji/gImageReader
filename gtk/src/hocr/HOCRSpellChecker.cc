@@ -73,7 +73,7 @@ bool HOCRSpellChecker::checkSpelling(const Glib::ustring& word, std::vector<Glib
 }
 
 // each suggestion for each word => each word in each suggestion
-void HOCRSpellChecker::generateCombinations(const std::vector<std::vector<Glib::ustring >> & lists, std::vector<std::vector<Glib::ustring >>& results, int depth, const std::vector<Glib::ustring>& c) const {
+void HOCRSpellChecker::generateCombinations(const std::vector<std::vector<Glib::ustring >>& lists, std::vector<std::vector<Glib::ustring >>& results, int depth, const std::vector<Glib::ustring>& c) const {
 	if (depth == int (lists.size())) {
 		results.push_back(c);
 		return;

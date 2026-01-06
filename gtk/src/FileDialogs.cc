@@ -339,8 +339,7 @@ std::vector<Glib::RefPtr<Gio::File >> open_dialog(const Glib::ustring& title, co
 #else
 	if (is_kde()) {
 		filenames = kde_open_dialog(title, initialDir, filter.to_kde_filter(), multiple, parent);
-	}
-	else {
+	} else {
 		filenames = gnome_open_dialog(title, initialDir, filter.to_gnome_filter(), multiple, parent);
 	}
 #endif
@@ -367,8 +366,7 @@ std::string open_folder_dialog(const Glib::ustring & title, const std::string & 
 #else
 	if (is_kde()) {
 		folder = kde_open_folder_dialog(title, initDir, parent);
-	}
-	else {
+	} else {
 		folder = gnome_open_folder_dialog(title, initDir, parent);
 	}
 #endif
@@ -399,8 +397,7 @@ std::string save_dialog(const Glib::ustring & title, const std::string & initial
 #else
 	if (is_kde()) {
 		filename = kde_save_dialog(title, suggestedFile, filter.to_kde_filter(), parent);
-	}
-	else {
+	} else {
 		filename = gnome_save_dialog(title, suggestedFile, filter.to_gnome_filter(), parent);
 	}
 #endif

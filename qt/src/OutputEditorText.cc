@@ -379,8 +379,7 @@ bool OutputEditorText::open(const QString& filename) {
 			if (edit->document()->isModified() == true || !edit->filename().isEmpty()) {
 				page = addTab(QFileInfo(file).fileName());
 				edit = textEdit(page);
-			}
-			else {
+			} else {
 				setTabName(page, QFileInfo(file).fileName());
 			}
 			edit->setPlainText(fh.readAll());
