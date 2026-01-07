@@ -288,6 +288,10 @@ void MainWindow::setOutputPaneVisible(bool visible) {
 	ui.actionToggleOutputPane->setChecked(visible);
 }
 
+void MainWindow::showStatus(const QString& message, int timeout) {
+	ui.statusbar->showMessage(message, timeout);
+}
+
 void MainWindow::pushState(MainWindow::State state, const QString& msg) {
 	m_stateStack.push(QPair<State, QString> (state, msg));
 	ui.statusbar->showMessage(msg);

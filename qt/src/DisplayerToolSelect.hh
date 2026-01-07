@@ -28,6 +28,8 @@
 
 class NumberedDisplayerSelection;
 
+using PostProcessor = std::function<void(QImage&, const QRectF&)>;
+
 class DisplayerToolSelect : public DisplayerTool {
 	Q_OBJECT
 public:
@@ -39,6 +41,7 @@ public:
 	void mouseReleaseEvent(QMouseEvent* event) override;
 	void resolutionChanged(double factor) override;
 	void rotationChanged(double delta) override;
+	void wheelEvent(QWheelEvent* event) override;
 
 	QList<QImage> getOCRAreas() override;
 	bool hasMultipleOCRAreas() const override {
@@ -59,8 +62,9 @@ private:
 	NumberedDisplayerSelection* m_curSel = nullptr;
 	QList<NumberedDisplayerSelection*> m_selections;
 	QColor m_bgColor;
+	int m_bgColorDiff = 16;
 
-	QRectF findBoundingRect(const QPoint& start);
+	QPair<QRectF, PostProcessor> calcBoundingBox(const QPoint& start);
 	void clearSelections();
 	void removeSelection(int num);
 	void reorderSelection(int oldNum, int newNum);
@@ -79,12 +83,19 @@ public:
 	void setNumber(int number) {
 		m_number = number;
 	}
+	void setPostProcessor(PostProcessor postProcessor) {
+		m_postProcessor = std::move(postProcessor);
+	}
+	const PostProcessor& postProcessor() const {
+		return m_postProcessor;
+	}
 
 private slots:
 	void reorderSelection(int newNumber);
 
 private:
 	int m_number;
+	PostProcessor m_postProcessor;
 	void contextMenuEvent(QGraphicsSceneContextMenuEvent* event) override;
 	void mousePressEvent(QGraphicsSceneMouseEvent* event) override;
 	void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) override;

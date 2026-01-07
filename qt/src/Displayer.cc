@@ -537,6 +537,10 @@ void Displayer::wheelEvent(QWheelEvent* event) {
 			hscroll->setValue(hscroll->value() - hscroll->singleStep());
 		}
 		event->accept();
+	} else if (event->modifiers() & Qt::AltModifier) {
+		if (m_tool && m_currentSource) {
+			m_tool->wheelEvent(event);
+		}
 	} else {
 		QGraphicsView::wheelEvent(event);
 	}

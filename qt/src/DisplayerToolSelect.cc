@@ -37,6 +37,126 @@
 #include <QStyle>
 
 
+static QImage addMargin(const QImage& src, const QSize& margin, const QColor& bgColor) {
+	int newWidth  = src.width()  + 2 * margin.width();
+	int newHeight = src.height() + 2 * margin.height();
+
+	QImage result(newWidth, newHeight, src.format());
+	result.fill(bgColor);
+
+	QPainter painter(&result);
+	painter.drawImage(margin.width(), margin.height(), src);
+	painter.end();
+
+	return result;
+}
+
+static QSet<QPoint> fillHoles(const QSet<QPoint>& mask, const QRect& bbox) {
+	QSet<QPoint> filled = mask;
+	QSet<QPoint> visitedZeros;
+
+	for (int x = bbox.left(); x < bbox.right(); x++) {
+		for (int y = bbox.top(); y < bbox.bottom(); y++) {
+			QPoint p(x, y);
+			if (!mask.contains(p) && !visitedZeros.contains(p)) {
+				QSet<QPoint> region;
+				bool touchesBorder = false;
+
+				QQueue<QPoint> queue;
+				queue.enqueue(p);
+
+				while (!queue.isEmpty()) {
+					QPoint q = queue.dequeue();
+					if (mask.contains(q) || visitedZeros.contains(q)) {
+						continue;
+					}
+
+					visitedZeros.insert(q);
+					region.insert(q);
+
+					if (q.x() == bbox.left() || q.x() == bbox.right() - 1 || q.y() == bbox.top() || q.y() == bbox.bottom() - 1) {
+						touchesBorder = true;
+					}
+
+					// Add neighbors (4-connectivity)
+					if (q.x() > bbox.left()) {
+						queue.enqueue(QPoint(q.x() - 1, q.y()));
+					}
+					if (q.x() < bbox.right() - 1) {
+						queue.enqueue(QPoint(q.x() + 1, q.y()));
+					}
+					if (q.y() > bbox.top()) {
+						queue.enqueue(QPoint(q.x(), q.y() - 1));
+					}
+					if (q.y() < bbox.bottom() - 1) {
+						queue.enqueue(QPoint(q.x(), q.y() + 1));
+					}
+				}
+
+				if (!touchesBorder) {
+					filled.unite(region);
+				}
+			}
+		}
+	}
+
+	return filled;
+}
+
+static QPair<QSet<QPoint>, QRect> calcMask(const QImage& img, const QPoint& start, const QColor& bgColor, const int bgColorDiff) {
+	QSet<QPoint> visited;
+	QSet<QPoint> mask;
+	QQueue<QPoint> queue;
+	queue.enqueue(start);
+
+	int minX = start.x();
+	int maxX = start.x();
+	int minY = start.y();
+	int maxY = start.y();
+
+	while (!queue.isEmpty()) {
+		QPoint p = queue.dequeue();
+		if (visited.contains(p)) {
+			continue;
+		}
+		visited.insert(p);
+
+		QColor c = img.pixelColor(p);
+		int diffR = qAbs(c.red() - bgColor.red());
+		int diffG = qAbs(c.green() - bgColor.green());
+		int diffB = qAbs(c.blue() - bgColor.blue());
+		if (diffR <= bgColorDiff && diffG <= bgColorDiff && diffB <= bgColorDiff) {
+			continue; // stop at background
+		}
+		mask.insert(p);
+
+		// Update bounding box
+		minX = qMin(minX, p.x());
+		maxX = qMax(maxX, p.x());
+		minY = qMin(minY, p.y());
+		maxY = qMax(maxY, p.y());
+
+		// Add neighbors (4-connectivity)
+		if (p.x() > 0) {
+			queue.enqueue(QPoint(p.x() - 1, p.y()));
+		}
+		if (p.x() < img.width() - 1) {
+			queue.enqueue(QPoint(p.x() + 1, p.y()));
+		}
+		if (p.y() > 0) {
+			queue.enqueue(QPoint(p.x(), p.y() - 1));
+		}
+		if (p.y() < img.height() - 1) {
+			queue.enqueue(QPoint(p.x(), p.y() + 1));
+		}
+	}
+
+	QRect bbox(QPoint(minX, minY), QPoint(maxX, maxY));
+	QSet<QPoint> maskFilled = fillHoles(mask, bbox);
+
+	return {maskFilled, bbox};
+}
+
 DisplayerToolSelect::DisplayerToolSelect(Displayer* displayer, QObject* parent)
 	: DisplayerTool(displayer, parent) {
 	displayer->setCursor(Qt::CrossCursor);
@@ -64,88 +184,54 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 	}
 }
 
-QRectF DisplayerToolSelect::findBoundingRect(const QPoint& pos) {
-	const int maxColorDiff = 20;
-	const int rectAdjust[4] = {-50, -1, 4, 2};
-	const int bgColorOffsetDiv = 40;
-
+QPair<QRectF, PostProcessor> DisplayerToolSelect::calcBoundingBox(const QPoint& pos) {
 	QPoint start = (m_displayer->mapToSceneClamped(pos) - m_displayer->getSceneBoundingRect().topLeft()).toPoint();
 	QImage img = m_displayer->getImage(m_displayer->getSceneBoundingRect());
 	if (!img.rect().contains(start)) {
-		return QRect();
+		return {};
 	}
 
 	QColor bgColor = m_bgColor;
 	if (bgColor == QColor()) {
+		const int bgColorOffsetDiv = 40;
 		bgColor = img.pixelColor(img.rect().width() / bgColorOffsetDiv, img.rect().height() / bgColorOffsetDiv);
 	}
 
-	QSet<QPoint> visited;
-	QQueue<QPoint> queue;
-	queue.enqueue(start);
+	auto [mask, maskRect] = calcMask(img, start, bgColor, m_bgColorDiff);
+	QRectF boundingRect = maskRect.toRectF().translated(m_displayer->getSceneBoundingRect().topLeft());
 
-	int minX = start.x();
-	int maxX = start.x();
-	int minY = start.y();
-	int maxY = start.y();
+	return QPair<QRectF, PostProcessor>(
+		boundingRect,
+		[mask, bgColor, displayer = m_displayer](QImage& img, const QRectF& selectionRect) {
+			QPoint topLeft = (selectionRect.topLeft() - displayer->getSceneBoundingRect().topLeft()).toPoint();
 
-	while (!queue.isEmpty()) {
-		QPoint p = queue.dequeue();
-		if (visited.contains(p)) {
-			continue;
+			for (int x = 0; x < img.width(); x++) {
+				for (int y = 0; y < img.height(); y++) {
+					QPoint p(x, y);
+					if (!mask.contains(p + topLeft)) {
+						img.setPixelColor(p, bgColor);
+					}
+				}
+			}
+
+			QSize margin(qMax(20, qMin(50, img.width() / 2)), qMax(20, qMin(50, img.height() / 2)));
+			img = addMargin(img, margin, bgColor);
 		}
-		visited.insert(p);
-
-		QColor c = img.pixelColor(p);
-		if (qAbs(c.red() - bgColor.red()) < maxColorDiff
-				&& qAbs(c.green() - bgColor.green()) < maxColorDiff
-				&& qAbs(c.blue() - bgColor.blue()) < maxColorDiff) {
-			continue; // stop at background
-		}
-
-		// Update bounding box
-		minX = qMin(minX, p.x());
-		maxX = qMax(maxX, p.x());
-		minY = qMin(minY, p.y());
-		maxY = qMax(maxY, p.y());
-
-		// Add neighbors (4-connectivity)
-		if (p.x() > 0) {
-			queue.enqueue(QPoint(p.x() - 1, p.y()));
-		}
-		if (p.x() < img.width() - 1) {
-			queue.enqueue(QPoint(p.x() + 1, p.y()));
-		}
-		if (p.y() > 0) {
-			queue.enqueue(QPoint(p.x(), p.y() - 1));
-		}
-		if (p.y() < img.height() - 1) {
-			queue.enqueue(QPoint(p.x(), p.y() + 1));
-		}
-	}
-
-	QRectF rect(QPointF(minX, minY), QPointF(maxX, maxY));
-	rect.adjust(rectAdjust[0], rectAdjust[1], rectAdjust[2], rectAdjust[3]);
-	rect.setLeft(qMax(0.0, rect.left()));
-	rect.translate(m_displayer->getSceneBoundingRect().topLeft());
-
-	return rect;
+	);
 }
 
 void DisplayerToolSelect::mousePressEvent(QMouseEvent* event) {
-	if (event->button() == Qt::LeftButton &&  m_curSel == nullptr) {
+	if (event->button() == Qt::LeftButton && m_curSel == nullptr) {
 		if ((event->modifiers() & Qt::ControlModifier) && (event->modifiers() & Qt::AltModifier)) {
 			QPointF pos = m_displayer->mapToScene(event->pos());
 			if (m_displayer->getSceneBoundingRect().contains(pos)) {
 				QImage img = m_displayer->getImage(QRectF(pos, QSize(1, 1)));
 				m_bgColor = img.pixelColor(0, 0);
-				QMessageBox::information(MAIN, _("Background color"), _("Changed background color to %1 (%2, %3, %4).")
+				MAIN->showStatus(_("Changed background color to %1 (%2, %3, %4).")
 					.arg(m_bgColor.name()).arg(m_bgColor.red()).arg(m_bgColor.green()).arg(m_bgColor.blue()));
-			}
-			else {
+			} else {
 				m_bgColor = QColor();
-				QMessageBox::information(MAIN, _("Background color"), _("Changed background color to auto.")
-					.arg(m_bgColor.name()).arg(m_bgColor.red()).arg(m_bgColor.green()).arg(m_bgColor.blue()));
+				MAIN->showStatus(_("Changed background color to auto."));
 			}
 		} else if (event->modifiers() & Qt::ControlModifier) {
 			m_curSel = new NumberedDisplayerSelection(this, 1 + m_selections.size(), m_displayer->mapToSceneClamped(event->pos()));
@@ -153,9 +239,10 @@ void DisplayerToolSelect::mousePressEvent(QMouseEvent* event) {
 			m_displayer->scene()->addItem(m_curSel);
 			event->accept();
 		} else if (event->modifiers() & Qt::AltModifier) {
-			QRectF rect = findBoundingRect(event->pos());
+			auto [rect, postProcessor] = calcBoundingBox(event->pos());
 			if (rect.width() > 10.0 && rect.height() > 10.0) {
 				m_selections.append(new NumberedDisplayerSelection(this, 1 + m_selections.size(), rect.topLeft()));
+				m_selections.back()->setPostProcessor(std::move(postProcessor));
 				m_selections.back()->setPoint(rect.bottomRight());
 				m_displayer->scene()->addItem(m_selections.back());
 				updateRecognitionModeLabel();
@@ -183,6 +270,14 @@ void DisplayerToolSelect::mouseReleaseEvent(QMouseEvent* event) {
 			updateRecognitionModeLabel();
 		}
 		m_curSel = nullptr;
+		event->accept();
+	}
+}
+
+void DisplayerToolSelect::wheelEvent(QWheelEvent* event) {
+	if (event->modifiers() & Qt::AltModifier) {
+		m_bgColorDiff = qMax(2, m_bgColorDiff + (event->angleDelta().x() > 0 ? 2 : -2));
+		MAIN->showStatus(_("Modified background color diff: %1").arg(m_bgColorDiff));
 		event->accept();
 	}
 }
@@ -246,6 +341,9 @@ void DisplayerToolSelect::saveSelection(NumberedDisplayerSelection* selection) {
 	if (!filename.isEmpty()) {
 		QRectF rect = selection ? selection->rect() : m_displayer->getSceneBoundingRect();
 		QImage img = m_displayer->getImage(rect);
+		if (selection && selection->postProcessor()) {
+			selection->postProcessor()(img, rect);
+		}
 		img.save(filename);
 	}
 }
@@ -263,6 +361,9 @@ void DisplayerToolSelect::saveAllSelections() {
 			QImage img = m_displayer->getImage(sel->rect());
 			auto imgFileName = QString("%1-%2.%3").arg(baseName).arg(index, width, 10, QChar('0')).arg(ext);
 			auto path = fi.dir().absoluteFilePath(imgFileName);
+			if (sel->postProcessor()) {
+				sel->postProcessor()(img, sel->rect());
+			}
 			img.save(path);
 			index++;
 		}

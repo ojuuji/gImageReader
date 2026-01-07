@@ -121,6 +121,7 @@ public:
 	void setOutputPaneVisible(bool visible);
 	void showProgress(ProgressMonitor* monitor, int updateInterval = 500);
 	void hideProgress();
+	void showStatus(const QString& message, int timeout = 3000);
 
 public slots:
 	bool setOutputMode(OutputMode mode);
