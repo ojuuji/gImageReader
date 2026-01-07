@@ -66,8 +66,8 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 
 QRectF DisplayerToolSelect::findBoundingRect(const QPoint& pos) {
 	const int maxColorDiff = 20;
-	const int expandByPx = 1;
-	const int expandByPxLeft = 50;
+	const int rectAdjust[4] = {-50, -1, 3, 2};
+	const int bgColorOffsetDiv = 40;
 
 	QPoint start = (m_displayer->mapToSceneClamped(pos) - m_displayer->getSceneBoundingRect().topLeft()).toPoint();
 	QImage img = m_displayer->getImage(m_displayer->getSceneBoundingRect());
@@ -75,7 +75,7 @@ QRectF DisplayerToolSelect::findBoundingRect(const QPoint& pos) {
 		return QRect();
 	}
 
-	QColor bgColor = img.pixelColor(expandByPx, expandByPx);
+	QColor bgColor = img.pixelColor(img.rect().width() / bgColorOffsetDiv, img.rect().height() / bgColorOffsetDiv);
 
 	QSet<QPoint> visited;
 	QQueue<QPoint> queue;
@@ -122,8 +122,9 @@ QRectF DisplayerToolSelect::findBoundingRect(const QPoint& pos) {
 	}
 
 	QRectF rect(QPointF(minX, minY), QPointF(maxX, maxY));
+	rect.adjust(rectAdjust[0], rectAdjust[1], rectAdjust[2], rectAdjust[3]);
+	rect.setLeft(qMax(0.0, rect.left()));
 	rect.translate(m_displayer->getSceneBoundingRect().topLeft());
-	rect.adjust(-expandByPxLeft, -expandByPx, expandByPx + 1, expandByPx + 1);
 
 	return rect;
 }
