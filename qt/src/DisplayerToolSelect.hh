@@ -58,6 +58,7 @@ private:
 	friend class NumberedDisplayerSelection;
 	NumberedDisplayerSelection* m_curSel = nullptr;
 	QList<NumberedDisplayerSelection*> m_selections;
+	QColor m_bgColor;
 
 	QRectF findBoundingRect(const QPoint& start);
 	void clearSelections();

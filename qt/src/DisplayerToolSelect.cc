@@ -66,7 +66,7 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 
 QRectF DisplayerToolSelect::findBoundingRect(const QPoint& pos) {
 	const int maxColorDiff = 20;
-	const int rectAdjust[4] = {-50, -1, 3, 2};
+	const int rectAdjust[4] = {-50, -1, 4, 2};
 	const int bgColorOffsetDiv = 40;
 
 	QPoint start = (m_displayer->mapToSceneClamped(pos) - m_displayer->getSceneBoundingRect().topLeft()).toPoint();
@@ -75,7 +75,10 @@ QRectF DisplayerToolSelect::findBoundingRect(const QPoint& pos) {
 		return QRect();
 	}
 
-	QColor bgColor = img.pixelColor(img.rect().width() / bgColorOffsetDiv, img.rect().height() / bgColorOffsetDiv);
+	QColor bgColor = m_bgColor;
+	if (bgColor == QColor()) {
+		bgColor = img.pixelColor(img.rect().width() / bgColorOffsetDiv, img.rect().height() / bgColorOffsetDiv);
+	}
 
 	QSet<QPoint> visited;
 	QQueue<QPoint> queue;
@@ -131,7 +134,20 @@ QRectF DisplayerToolSelect::findBoundingRect(const QPoint& pos) {
 
 void DisplayerToolSelect::mousePressEvent(QMouseEvent* event) {
 	if (event->button() == Qt::LeftButton &&  m_curSel == nullptr) {
-		if (event->modifiers() & Qt::ControlModifier) {
+		if ((event->modifiers() & Qt::ControlModifier) && (event->modifiers() & Qt::AltModifier)) {
+			QPointF pos = m_displayer->mapToScene(event->pos());
+			if (m_displayer->getSceneBoundingRect().contains(pos)) {
+				QImage img = m_displayer->getImage(QRectF(pos, QSize(1, 1)));
+				m_bgColor = img.pixelColor(0, 0);
+				QMessageBox::information(MAIN, _("Background color"), _("Changed background color to %1 (%2, %3, %4).")
+					.arg(m_bgColor.name()).arg(m_bgColor.red()).arg(m_bgColor.green()).arg(m_bgColor.blue()));
+			}
+			else {
+				m_bgColor = QColor();
+				QMessageBox::information(MAIN, _("Background color"), _("Changed background color to auto.")
+					.arg(m_bgColor.name()).arg(m_bgColor.red()).arg(m_bgColor.green()).arg(m_bgColor.blue()));
+			}
+		} else if (event->modifiers() & Qt::ControlModifier) {
 			m_curSel = new NumberedDisplayerSelection(this, 1 + m_selections.size(), m_displayer->mapToSceneClamped(event->pos()));
 			m_curSel->setZValue(1 + m_selections.size());
 			m_displayer->scene()->addItem(m_curSel);
