@@ -505,16 +505,24 @@ void NumberedDisplayerSelection::paint(QPainter* painter, const QStyleOptionGrap
 
 	painter->setRenderHint(QPainter::Antialiasing, false);
 	QRectF r = rect();
-	qreal w = 20.0 / m_tool->getDisplayer()->getCurrentScale();
-	w = std::min(w, std::min(r.width(), r.height()));
-	QRectF box(r.x(), r.y(), w, w);
+	qreal h = 20.0 / m_tool->getDisplayer()->getCurrentScale();
+	qreal w = h * (m_number >= 100 ? 1.5 : 1.0);
+	if (w > r.width()) {
+		h *= (qreal)r.width() / w;
+		w = r.width();
+	}
+	if (h > r.height()) {
+		w *= (qreal)r.height() / h;
+		h = r.height();
+	}
+	QRectF box(r.x(), r.y(), w, h);
 	painter->setBrush(QPalette().highlight());
 	painter->drawRect(box);
 	painter->setRenderHint(QPainter::Antialiasing, true);
 
-	if (w > 1.25) {
+	if (h > 1.25) {
 		QFont font;
-		font.setPixelSize(0.8 * w);
+		font.setPixelSize(0.8 * h);
 		font.setBold(true);
 		painter->setFont(font);
 		painter->setPen(QPalette().highlightedText().color());
