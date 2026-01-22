@@ -28,7 +28,7 @@
 
 class NumberedDisplayerSelection;
 
-using PostProcessor = std::function<void(QImage&, const QRectF&)>;
+using PostProcessor = std::function<QString(QImage&, const QRectF&)>;
 
 class DisplayerToolSelect : public DisplayerTool {
 	Q_OBJECT

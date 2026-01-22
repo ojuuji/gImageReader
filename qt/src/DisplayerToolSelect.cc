@@ -214,8 +214,18 @@ QPair<QRectF, PostProcessor> DisplayerToolSelect::calcBoundingBox(const QPoint& 
 				}
 			}
 
+			QString message;
+			for (const QPoint& p : mask) {
+				if (p.x() < topLeft.x() || p.x() >= topLeft.x() + img.width() || p.y() < topLeft.y() || p.y() >= topLeft.y() + img.height()) {
+					message = _("Mask point %1x%2 is outside selection [%3x%4, %5x%6).").arg(p.x()).arg(p.y())
+						.arg(topLeft.x()).arg(topLeft.y()).arg(topLeft.x() + img.width()).arg(topLeft.y() + img.height());
+				}
+			}
+
 			QSize margin(qMax(20, qMin(50, img.width() / 2)), qMax(20, qMin(50, img.height() / 2)));
 			img = addMargin(img, margin, bgColor);
+
+			return message;
 		}
 	);
 }
@@ -341,10 +351,14 @@ void DisplayerToolSelect::saveSelection(NumberedDisplayerSelection* selection) {
 	if (!filename.isEmpty()) {
 		QRectF rect = selection ? selection->rect() : m_displayer->getSceneBoundingRect();
 		QImage img = m_displayer->getImage(rect);
+		QString message;
 		if (selection && selection->postProcessor()) {
-			selection->postProcessor()(img, rect);
+			message = selection->postProcessor()(img, rect);
 		}
 		img.save(filename);
+		if (!message.isEmpty()) {
+			QMessageBox::warning(MAIN, _("Recognition errors"), message);
+		}
 	}
 }
 
@@ -357,15 +371,22 @@ void DisplayerToolSelect::saveAllSelections() {
 		QString ext = fi.suffix();
 		int width = QString::number(m_selections.size()).length();
 		int index = 0;
+		QStringList messages;
 		for (NumberedDisplayerSelection* sel : m_selections) {
 			QImage img = m_displayer->getImage(sel->rect());
 			auto imgFileName = QString("%1-%2.%3").arg(baseName).arg(index, width, 10, QChar('0')).arg(ext);
 			auto path = fi.dir().absoluteFilePath(imgFileName);
 			if (sel->postProcessor()) {
-				sel->postProcessor()(img, sel->rect());
+				QString message = sel->postProcessor()(img, sel->rect());
+				if (!message.isEmpty()) {
+					messages << _("Selection #%1: %2").arg(index + 1).arg(message);
+				}
 			}
 			img.save(path);
 			index++;
+		}
+		if (!messages.isEmpty()) {
+			QMessageBox::warning(MAIN, _("Recognition errors"), messages.join("\n"));
 		}
 	}
 }
