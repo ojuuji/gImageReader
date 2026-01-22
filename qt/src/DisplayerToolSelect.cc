@@ -158,7 +158,7 @@ static QPair<QSet<QPoint>, QRect> calcMask(const QImage& img, const QPoint& star
 }
 
 DisplayerToolSelect::DisplayerToolSelect(Displayer* displayer, QObject* parent)
-	: DisplayerTool(displayer, parent) {
+	: DisplayerTool(displayer, parent), m_pnr(this) {
 	displayer->setCursor(Qt::CrossCursor);
 	updateRecognitionModeLabel();
 }
@@ -256,6 +256,10 @@ void DisplayerToolSelect::mousePressEvent(QMouseEvent* event) {
 				m_selections.back()->setPoint(rect.bottomRight());
 				m_displayer->scene()->addItem(m_selections.back());
 				updateRecognitionModeLabel();
+
+				if (event->modifiers() & Qt::ShiftModifier) {
+					m_pnr.recognizePieceNum(m_selections.back());
+				}
 			}
 			event->accept();
 		}
@@ -494,7 +498,8 @@ void NumberedDisplayerSelection::contextMenuEvent(QGraphicsSceneContextMenuEvent
 	QAction* ocrAction = new QAction(QIcon::fromTheme("insert-text"), _("Recognize"), &menu);
 	QAction* ocrClipboardAction = new QAction(QIcon::fromTheme("edit-copy"), _("Recognize to clipboard"), &menu);
 	QAction* saveAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save as image"), &menu);
-	menu.addActions(QList<QAction*>() << spinAction << deleteAction << ocrAction << ocrClipboardAction << saveAction);
+	QAction* setAvgPnSizeAction = new QAction(QIcon::fromTheme("text-plain"), _("Set average piece num size"), &menu);
+	menu.addActions(QList<QAction*>() << spinAction << deleteAction << ocrAction << ocrClipboardAction << saveAction << setAvgPnSizeAction);
 	QAction* selected = menu.exec(event->screenPos());
 	if (selected == deleteAction) {
 		static_cast<DisplayerToolSelect*> (m_tool)->removeSelection(m_number);
@@ -504,6 +509,10 @@ void NumberedDisplayerSelection::contextMenuEvent(QGraphicsSceneContextMenuEvent
 		MAIN->getRecognizer()->recognizeImage(m_tool->getDisplayer()->getImage(rect()), Recognizer::OutputDestination::Clipboard);
 	} else if (selected == saveAction) {
 		static_cast<DisplayerToolSelect*> (m_tool)->saveSelection(this);
+	} else if (selected == setAvgPnSizeAction) {
+		QSizeF size(rect().size());
+		static_cast<DisplayerToolSelect*> (m_tool)->setAvgPieceNumSize(size);
+		MAIN->showStatus(_("Updated average piece num size to %1x%2.").arg(size.width()).arg(size.height()));
 	}
 }
 

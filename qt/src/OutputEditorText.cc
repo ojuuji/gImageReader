@@ -322,6 +322,10 @@ void OutputEditorText::readError(const QString& errorMsg, ReadSessionData* data)
 	insertText = true;
 }
 
+void OutputEditorText::appendText(const QString& text) {
+	QMetaObject::invokeMethod(this, "addText", Qt::QueuedConnection, Q_ARG(QString, text), Q_ARG(bool, false));
+}
+
 void OutputEditorText::addText(const QString& text, bool insert) {
 	if (insert) {
 		textEdit()->textCursor().insertText(text);

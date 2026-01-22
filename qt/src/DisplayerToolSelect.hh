@@ -25,6 +25,7 @@
 #include <QSpinBox>
 #include <QWidgetAction>
 #include "Displayer.hh"
+#include "PieceNumRecognizer.hh"
 
 class NumberedDisplayerSelection;
 
@@ -56,6 +57,9 @@ public:
 	void reset() override {
 		clearSelections();
 	}
+	void setAvgPieceNumSize(QSizeF size) {
+		m_pnr.setAvgPieceNumSize(size);
+	}
 
 private:
 	friend class NumberedDisplayerSelection;
@@ -63,6 +67,7 @@ private:
 	QList<NumberedDisplayerSelection*> m_selections;
 	QColor m_bgColor;
 	int m_bgColorDiff = 16;
+	PieceNumRecognizer m_pnr;
 
 	QPair<QRectF, PostProcessor> calcBoundingBox(const QPoint& start);
 	void clearSelections();
