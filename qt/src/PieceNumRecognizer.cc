@@ -34,7 +34,6 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 
-
 static QString DEFAULT_OLLAMA_MODEL = "llama3.2-vision";
 static QString DEFAULT_OLLAMA_PROMPT = R"(
 You are extracting structured data from a CaDA "bill of materials" page.
@@ -62,6 +61,69 @@ Output rules:
 )";
 static QString DEFAULT_OLLAMA_REGEX = "\"(\\S+)\"\\s*:\\s*\"(\\S+)\"";
 
+StickyTooltip::StickyTooltip(const QString& text, QPoint pos)
+	: QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint) {
+	setAttribute(Qt::WA_DeleteOnClose);
+	setAttribute(Qt::WA_TranslucentBackground);
+	setAttribute(Qt::WA_ShowWithoutActivating);
+	setAttribute(Qt::WA_TransparentForMouseEvents, false);
+	setFocusPolicy(Qt::NoFocus);
+
+	auto* layout = new QVBoxLayout(this);
+	layout->setContentsMargins(0, 0, 0, 0);
+	auto* label = new QLabel(text);
+	label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+	layout->addWidget(label);
+
+	setStyleSheet(QString(R"(
+		StickyTooltip {
+			background: transparent;
+		}
+		QLabel {
+			background: #eee;
+			border: 1px solid #888;
+			border-radius: 3px;
+			padding: 0px %1px;
+		}
+	)").arg(s_padding));
+
+	adjustSize();
+	move(pos);
+	show();
+
+	QTimer::singleShot(10000, this, &QWidget::close);
+}
+
+void StickyTooltip::mousePressEvent(QMouseEvent* e) {
+	if (e->button() == Qt::LeftButton) {
+		m_dragging = true;
+		m_dragOffset = e->globalPosition().toPoint() - frameGeometry().topLeft();
+		e->accept();
+	}
+}
+
+void StickyTooltip::mouseMoveEvent(QMouseEvent* e) {
+	if (m_dragging) {
+		move(e->globalPosition().toPoint() - m_dragOffset);
+		e->accept();
+	}
+}
+
+void StickyTooltip::mouseReleaseEvent(QMouseEvent* e) {
+	if (e->button() == Qt::LeftButton) {
+		m_dragging = false;
+		e->accept();
+	}
+}
+
+void StickyTooltip::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Escape) {
+		close();
+		return;
+	}
+	QWidget::keyPressEvent(e);
+}
+
 PieceNumRecognizer::PieceNumRecognizer(DisplayerToolSelect* tool)
 	: QObject(tool), m_tool(tool) {
 	ADD_SETTING(VarSetting<QString> ("ollamaModel", DEFAULT_OLLAMA_MODEL));
@@ -79,12 +141,23 @@ void PieceNumRecognizer::recognizePieceNum(NumberedDisplayerSelection* sel) {
 		return;
 	}
 
+	MAIN->setOutputPaneVisible(true);
+
 	QImage img = prepareImage(sel);
 	QByteArray payload = preparePayload(img);
 
 	auto [response, raw] = sendRequest(payload);
 	if (!response.isEmpty()) {
 		MAIN->getOutputEditor()->appendText(response + "\n");
+
+		qreal minY = sel->rect().bottom() - 2.0 * m_avgPieceNumSize.height() - StickyTooltip::verticalPadding();
+		qreal maxY = sel->rect().bottom() - 1.2 * m_avgPieceNumSize.height() - StickyTooltip::verticalPadding();
+		QPointF pos(sel->rect().left(), std::clamp(sel->rect().top(), minY, maxY));
+		QPoint posGlobal = m_tool->getDisplayer()->mapToGlobal(m_tool->getDisplayer()->mapFromScene(pos));
+
+		// QToolTip hides immediately, maybe because view loses keyboard focus
+		// when appending text to editor
+		new StickyTooltip(response, posGlobal);
 	}
 
 	bool debug = ConfigSettings::get<VarSetting<bool>> ("ollamaDebug")->getValue();

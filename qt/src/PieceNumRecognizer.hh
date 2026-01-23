@@ -26,6 +26,26 @@
 class DisplayerToolSelect;
 class NumberedDisplayerSelection;
 
+class StickyTooltip : public QWidget {
+	Q_OBJECT
+public:
+	StickyTooltip(const QString& text, QPoint pos);
+
+	static int verticalPadding() {
+		return 2 * s_padding;
+	}
+
+private:
+	static const int s_padding = 3;
+	bool m_dragging = false;
+	QPoint m_dragOffset;
+
+	void mousePressEvent(QMouseEvent* e) override;
+	void mouseMoveEvent(QMouseEvent* e) override;
+	void mouseReleaseEvent(QMouseEvent* e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+};
+
 class PieceNumRecognizer : public QObject {
 	Q_OBJECT
 public:
