@@ -173,8 +173,12 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 	clearAction->setEnabled(!m_selections.isEmpty());
 	QAction* saveSelectionsAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save selections as images"), &menu);
 	QAction* savePageAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save page as image"), &menu);
+	QAction* setBgColorAction = new QAction(_("Set piece image background color") + "\tCtrl+Alt+LeftClick", &menu);
+	QAction* recognizeImgAction = new QAction(_("Recognize piece image") + "\tAlt+LeftClick", &menu);
+	QAction* recognizeImgNumAction = new QAction(_("Recognize piece image and num") + "\tAlt+Shift+LeftClick", &menu);
 	QAction* showPnrConfigAction = new QAction(QIcon::fromTheme("preferences-system"), _("Configure piece num recognizer"), &menu);
-	menu.addActions(QList<QAction*>() << clearAction << saveSelectionsAction << savePageAction << showPnrConfigAction);
+	menu.addActions(QList<QAction*>() << clearAction << saveSelectionsAction << savePageAction
+		<< setBgColorAction << recognizeImgAction << recognizeImgNumAction << showPnrConfigAction);
 	QAction* selected = menu.exec(event->globalPos());
 	if (selected == clearAction) {
 		clearSelections();
@@ -182,6 +186,10 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 		saveAllSelections();
 	} else if (selected == savePageAction) {
 		saveSelection();
+	} else if (selected == setBgColorAction) {
+		setPieceImgBgColor(event->pos());
+	} else if (selected == recognizeImgAction || selected == recognizeImgNumAction) {
+		recognizePiece(event->pos(), selected == recognizeImgNumAction);
 	} else if (selected == showPnrConfigAction) {
 		m_pnr.showConfig();
 	}
@@ -236,34 +244,14 @@ QPair<QRectF, PostProcessor> DisplayerToolSelect::calcBoundingBox(const QPoint& 
 void DisplayerToolSelect::mousePressEvent(QMouseEvent* event) {
 	if (event->button() == Qt::LeftButton && m_curSel == nullptr) {
 		if ((event->modifiers() & Qt::ControlModifier) && (event->modifiers() & Qt::AltModifier)) {
-			QPointF pos = m_displayer->mapToScene(event->pos());
-			if (m_displayer->getSceneBoundingRect().contains(pos)) {
-				QImage img = m_displayer->getImage(QRectF(pos, QSize(1, 1)));
-				m_bgColor = img.pixelColor(0, 0);
-				MAIN->showStatus(_("Changed background color to %1 (%2, %3, %4).")
-					.arg(m_bgColor.name()).arg(m_bgColor.red()).arg(m_bgColor.green()).arg(m_bgColor.blue()));
-			} else {
-				m_bgColor = QColor();
-				MAIN->showStatus(_("Changed background color to auto."));
-			}
+			setPieceImgBgColor(event->pos());
 		} else if (event->modifiers() & Qt::ControlModifier) {
 			m_curSel = new NumberedDisplayerSelection(this, 1 + m_selections.size(), m_displayer->mapToSceneClamped(event->pos()));
 			m_curSel->setZValue(1 + m_selections.size());
 			m_displayer->scene()->addItem(m_curSel);
 			event->accept();
 		} else if (event->modifiers() & Qt::AltModifier) {
-			auto [rect, postProcessor] = calcBoundingBox(event->pos());
-			if (rect.width() > 10.0 && rect.height() > 10.0) {
-				m_selections.append(new NumberedDisplayerSelection(this, 1 + m_selections.size(), rect.topLeft()));
-				m_selections.back()->setPostProcessor(std::move(postProcessor));
-				m_selections.back()->setPoint(rect.bottomRight());
-				m_displayer->scene()->addItem(m_selections.back());
-				updateRecognitionModeLabel();
-
-				if (event->modifiers() & Qt::ShiftModifier) {
-					m_pnr.recognizePieceNum(m_selections.back());
-				}
-			}
+			recognizePiece(event->pos(), event->modifiers() & Qt::ShiftModifier);
 			event->accept();
 		}
 	}
@@ -469,6 +457,34 @@ void DisplayerToolSelect::autodetectLayout(bool noDeskew) {
 	}
 }
 
+void DisplayerToolSelect::recognizePiece(QPoint pos, bool includePieceNum) {
+	auto [rect, postProcessor] = calcBoundingBox(pos);
+	if (rect.width() > 10.0 && rect.height() > 10.0) {
+		m_selections.append(new NumberedDisplayerSelection(this, 1 + m_selections.size(), rect.topLeft()));
+		m_selections.back()->setPostProcessor(std::move(postProcessor));
+		m_selections.back()->setPoint(rect.bottomRight());
+		m_displayer->scene()->addItem(m_selections.back());
+		updateRecognitionModeLabel();
+
+		if (includePieceNum) {
+			m_pnr.recognizePieceNum(m_selections.back());
+		}
+	}
+}
+
+void DisplayerToolSelect::setPieceImgBgColor(QPoint pos) {
+	QPointF posF = m_displayer->mapToScene(pos);
+	if (m_displayer->getSceneBoundingRect().contains(posF)) {
+		QImage img = m_displayer->getImage(QRectF(posF, QSize(1, 1)));
+		m_bgColor = img.pixelColor(0, 0);
+		MAIN->showStatus(_("Changed background color to %1 (%2, %3, %4).")
+			.arg(m_bgColor.name()).arg(m_bgColor.red()).arg(m_bgColor.green()).arg(m_bgColor.blue()));
+	} else {
+		m_bgColor = QColor();
+		MAIN->showStatus(_("Changed background color to auto."));
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 void NumberedDisplayerSelection::contextMenuEvent(QGraphicsSceneContextMenuEvent* event) {
@@ -497,7 +513,7 @@ void NumberedDisplayerSelection::contextMenuEvent(QGraphicsSceneContextMenuEvent
 	QWidgetAction* spinAction = new QWidgetAction(&menu);
 	spinAction->setDefaultWidget(orderWidget);
 
-	QAction* deleteAction = new QAction(QIcon::fromTheme("edit-delete"), _("Delete"), &menu);
+	QAction* deleteAction = new QAction(QIcon::fromTheme("edit-delete"), _("Delete") + "\tCtrl+LeftClick", &menu);
 	QAction* ocrAction = new QAction(QIcon::fromTheme("insert-text"), _("Recognize"), &menu);
 	QAction* ocrClipboardAction = new QAction(QIcon::fromTheme("edit-copy"), _("Recognize to clipboard"), &menu);
 	QAction* saveAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save as image"), &menu);

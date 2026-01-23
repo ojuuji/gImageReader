@@ -77,6 +77,8 @@ private:
 	void saveAllSelections();
 	void updateRecognitionModeLabel();
 	void autodetectLayout(bool noDeskew = false);
+	void recognizePiece(QPoint pos, bool includePieceNum);
+	void setPieceImgBgColor(QPoint pos);
 };
 
 class NumberedDisplayerSelection : public DisplayerSelection {
