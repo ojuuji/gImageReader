@@ -149,9 +149,9 @@ void StickyTooltip::mouseReleaseEvent(QMouseEvent* e) {
 void StickyTooltip::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		close();
-		return;
+	} else {
+		QWidget::keyPressEvent(e);
 	}
-	QWidget::keyPressEvent(e);
 }
 
 PieceNumRecognizer::PieceNumRecognizer(DisplayerToolSelect* tool)
@@ -175,10 +175,24 @@ void PieceNumRecognizer::recognizePieceNum(NumberedDisplayerSelection* sel) {
 	MAIN->setOutputPaneVisible(true);
 
 	QImage img = prepareImage(sel);
-	QByteArray payload = preparePayload(img);
+	QJsonObject json = prepareOcrPayload(img);
 
-	auto [response, raw] = sendRequest(payload);
-	if (!response.isEmpty()) {
+	QString debugBasePath;
+	if (cfgB("ollamadebug").getValue()) {
+		debugBasePath = QDir(QDir::tempPath()).filePath("gImageReaderLastOllama");
+		img.save(debugBasePath + "Request.png");
+
+		QFile file(debugBasePath + "Request.json");
+		if (file.open(QIODevice::WriteOnly)) {
+			file.write(QJsonDocument(json).toJson(QJsonDocument::Compact));
+			file.close();
+		}
+	}
+
+	auto [response, isError] = sendOcrRequest(json, debugBasePath.isEmpty() ? "" : (debugBasePath + "Response.bin"));
+	if (isError) {
+		QMessageBox::warning(MAIN, _("Error"), response);
+	} else {
 		MAIN->getOutputEditor()->appendText(response + "\n");
 
 		qreal minY = sel->rect().bottom() - 2.0 * m_avgPieceNumSize.height() - StickyTooltip::verticalPadding();
@@ -191,23 +205,8 @@ void PieceNumRecognizer::recognizePieceNum(NumberedDisplayerSelection* sel) {
 		new StickyTooltip(response, posGlobal);
 	}
 
-	if (cfgB("ollamadebug").getValue()) {
-		QString basePath = QDir(QDir::tempPath()).filePath("gImageReaderLastOllama");
-		img.save(basePath + "Request.png");
-
-		QFile req(basePath + "Request.json");
-		if (req.open(QIODevice::WriteOnly)) {
-			req.write(payload);
-			req.close();
-		}
-
-		QFile resp(basePath + "Response.bin");
-		if (resp.open(QIODevice::WriteOnly)) {
-			resp.write(raw);
-			resp.close();
-		}
-
-		MAIN->showStatus(_("Saved Ollama communication as %1Re*.*").arg(basePath));
+	if (!debugBasePath.isEmpty()) {
+		MAIN->showStatus(_("Saved Ollama communication as %1Re*.*").arg(debugBasePath));
 	}
 }
 
@@ -232,7 +231,7 @@ QImage PieceNumRecognizer::prepareImage(NumberedDisplayerSelection* sel) const {
 	return img;
 }
 
-QByteArray PieceNumRecognizer::preparePayload(const QImage& img) const {
+QJsonObject PieceNumRecognizer::prepareOcrPayload(const QImage& img) const {
 	QByteArray ba;
 	QBuffer buffer(&ba);
 	buffer.open(QIODevice::WriteOnly);
@@ -247,24 +246,25 @@ QByteArray PieceNumRecognizer::preparePayload(const QImage& img) const {
 	images.append(QString::fromLatin1(ba.toBase64()));
 	json["images"] = images;
 
-	return QJsonDocument(json).toJson(QJsonDocument::Compact);
+	return json;
 }
 
-QPair<QString, QByteArray> PieceNumRecognizer::sendRequest(const QByteArray& payload) const {
-	QUrl endpoint(cfgS("ollamaapi").getValue());
-	endpoint.setPath("/api/generate");
-
+QPair<QJsonObject, QString> PieceNumRecognizer::sendRequest(const QUrl& endpoint, int timeoutMs, const QJsonObject* payload, const QString* debugPath) {
 	QNetworkRequest request(endpoint);
-	request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
 	QNetworkAccessManager manager;
-	QNetworkReply *reply = manager.post(request, payload);
+	QNetworkReply *reply;
+	if (payload) {
+		request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+		reply = manager.post(request, QJsonDocument(*payload).toJson(QJsonDocument::Compact));
+	} else {
+		reply = manager.get(request);
+	}
 
 	QEventLoop loop;
 	QTimer timer;
 
 	timer.setSingleShot(true);
-	timer.start(30000);
+	timer.start(timeoutMs);
 
 	QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
 	QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
@@ -274,58 +274,120 @@ QPair<QString, QByteArray> PieceNumRecognizer::sendRequest(const QByteArray& pay
 
 	if (!timer.isActive()) {
 		reply->abort();
-		return {"Error: HTTP request timeout", QByteArray{}};
+		return {QJsonObject{}, "Error: HTTP request timeout"};
 	}
 
 	timer.stop();
 
 	if (reply->error() != QNetworkReply::NoError) {
-		return {QString("HTTP error: %1").arg(reply->errorString()), QByteArray{}};
+		return {QJsonObject{}, QString("HTTP error: %1").arg(reply->errorString())};
 	}
 
 	QByteArray raw = reply->readAll();
+	if (debugPath) {
+		QFile file(*debugPath);
+		if (file.open(QIODevice::WriteOnly)) {
+			file.write(raw);
+			file.close();
+		}
+	}
+
 	QJsonParseError err;
 	QJsonDocument doc = QJsonDocument::fromJson(raw, &err);
 	if (err.error != QJsonParseError::NoError) {
-		return {QString("JSON parse error: %1").arg(err.errorString()), raw};
+		return {QJsonObject{}, QString("JSON parse error: %1").arg(err.errorString())};
 	} else if (!doc.isObject()) {
-		return {"Error: received not a JSON object", raw};
+		return {QJsonObject{}, "Error: received not a JSON object"};
 	}
 
-	QString response = doc.object().value("response").toString();
+	return {doc.object(), QString{}};
+}
+
+QPair<QString, bool> PieceNumRecognizer::sendOcrRequest(const QJsonObject& payload, const QString& debugPath) const {
+	QUrl endpoint(cfgS("ollamaapi").getValue());
+	endpoint.setPath("/api/generate");
+
+	auto res = sendRequest(endpoint, 30000, &payload, &debugPath);
+	if (!res.second.isEmpty()) {
+		return {res.second, true};
+	}
+
+	QString response = res.first.value("response").toString();
 	auto match = QRegularExpression(cfgS("ollamaregex").getValue()).match(response);
 	if (!match.hasMatch()) {
-		return {QString("Error: unexpected response: %1").arg(response), raw};
+		return {QString("Error: unexpected response: %1").arg(response), true};
 	}
 
-	return {QString("%1\n%2").arg(match.captured(2)).arg(match.captured(1)), raw};
+	return {QString("%1\n%2").arg(match.captured(2)).arg(match.captured(1)), false};
 }
 
 void PieceNumRecognizer::showConfig() {
 	QDialog dlg;
-	dlg.setWindowTitle("Piece Num Recognizer Configuration");
+	dlg.setWindowTitle(_("Piece Num Recognizer Configuration"));
 	dlg.setWindowIcon(QIcon::fromTheme("preferences-system"));
 
 	auto apiEdit = new QLineEdit(cfgS("ollamaapi").getValue(), &dlg);
-	auto modelEdit = new QLineEdit(cfgS("ollamamodel").getValue(), &dlg);
+
+	auto modelsCombo = new QComboBox(&dlg); 
+	modelsCombo->setEditable(true);
+	modelsCombo->setEditText(cfgS("ollamamodel").getValue());
+
+	auto fetchBtn = new QToolButton(&dlg);
+	fetchBtn->setIcon(QIcon::fromTheme("view-refresh"));
+	fetchBtn->setToolTip(_("Fetch models"));
+	connect(fetchBtn, &QToolButton::clicked, [&]() {
+		fetchBtn->setEnabled(false);
+
+		QUrl endpoint(apiEdit->text());
+		endpoint.setPath("/api/tags");
+
+		auto [json, error] = sendRequest(endpoint, 10000);
+		if (!error.isEmpty()) {
+			QMessageBox::warning(&dlg, _("Error"), error);
+		} else {
+			modelsCombo->clear();
+			auto models = json.value("models").toArray();
+			QStringList modelNames;
+			for (const auto& model : models) {
+				modelNames << model.toObject().value("name").toString();
+			}
+			modelNames.removeAll("");
+			modelNames.sort();
+			for (const auto& name : modelNames) {
+				modelsCombo->addItem(name);
+			}
+			modelsCombo->showPopup();
+		}
+
+		fetchBtn->setEnabled(true);
+	});
+
+	auto modelLayout = new QHBoxLayout;
+	modelLayout->setContentsMargins(0, 0, 0, 0);
+	modelLayout->setSpacing(0);
+	modelLayout->addWidget(modelsCombo);
+	modelLayout->addWidget(fetchBtn);
+
 	auto promptEdit = new QPlainTextEdit(cfgS("ollamaprompt").getValue(), &dlg);
 	auto regexEdit = new QLineEdit(cfgS("ollamaregex").getValue(), &dlg);
 
-	auto debugLayout = new QVBoxLayout;
-	auto debugCheck = new QCheckBox("Enable debug output", &dlg);
+	auto debugCheck = new QCheckBox(_("Enable debug output"), &dlg);
 	debugCheck->setChecked(cfgB("ollamadebug").getValue());
-	debugLayout->addWidget(debugCheck);
 
-	auto debugNote = new QLabel("Save Ollama communication as <tmp_dir>/gImageReaderLastOllamaRe*.*");
-	debugNote->setStyleSheet("color: gray; font-size: 11px;");
-	debugNote->setContentsMargins(22, 0, 0, 0);
+	auto debugNote = new QLabel(_("Save Ollama communication as <tmp_dir>/gImageReaderLastOllamaRe*.*"));
+	debugNote->setStyleSheet("color: gray; font-size: 11px; padding-left: 24px; padding-bottom: 10px;");
+
+	auto debugLayout = new QVBoxLayout;
+	debugLayout->setContentsMargins(0, 0, 0, 0);
+	debugLayout->setSpacing(0);
+	debugLayout->addWidget(debugCheck);
 	debugLayout->addWidget(debugNote);
 
 	auto form = new QFormLayout;
-	form->addRow("Ollama API:", apiEdit);
-	form->addRow("Model name:", modelEdit);
-	form->addRow("Prompt:", promptEdit);
-	form->addRow("Response regex:", regexEdit);
+	form->addRow(_("Ollama API:"), apiEdit);
+	form->addRow(_("Model name:"), modelLayout);
+	form->addRow(_("Prompt:"), promptEdit);
+	form->addRow(_("Response regex:"), regexEdit);
 	form->addRow(debugLayout);
 
 	auto buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel, &dlg);
@@ -339,17 +401,17 @@ void PieceNumRecognizer::showConfig() {
 
 	dlg.setLayout(mainLayout);
 	dlg.setMinimumSize(420, 300);
-	dlg.resize(520, 372);
+	dlg.resize(532, 380);
 
 	auto onChanged = [&](auto&&...) {
 		bool canSave = apiEdit->text() != cfgS("ollamaapi").getValue() ||
-			modelEdit->text() != cfgS("ollamamodel").getValue() ||
+			modelsCombo->currentText() != cfgS("ollamamodel").getValue() ||
 			promptEdit->toPlainText() != cfgS("ollamaprompt").getValue() ||
 			regexEdit->text() != cfgS("ollamaregex").getValue() ||
 			debugCheck->isChecked() != cfgB("ollamadebug").getValue();
 
 		bool canRestore = apiEdit->text() != cfgS("ollamaapi").getDefaultValue() ||
-			modelEdit->text() != cfgS("ollamamodel").getDefaultValue() ||
+			modelsCombo->currentText() != cfgS("ollamamodel").getDefaultValue() ||
 			promptEdit->toPlainText() != cfgS("ollamaprompt").getDefaultValue() ||
 			regexEdit->text() != cfgS("ollamaregex").getDefaultValue() ||
 			debugCheck->isChecked() != cfgB("ollamadebug").getDefaultValue();
@@ -360,14 +422,14 @@ void PieceNumRecognizer::showConfig() {
 	onChanged();
 
 	connect(apiEdit, &QLineEdit::textChanged, onChanged);
-	connect(modelEdit, &QLineEdit::textChanged, onChanged);
+	connect(modelsCombo, &QComboBox::editTextChanged, onChanged);
 	connect(promptEdit, &QPlainTextEdit::textChanged, onChanged);
 	connect(regexEdit, &QLineEdit::textChanged, onChanged);
 	connect(debugCheck, &QCheckBox::toggled, onChanged);
 
 	connect(buttons->button(QDialogButtonBox::RestoreDefaults), &QPushButton::clicked, [&]() {
 		apiEdit->setText(cfgS("ollamaapi").getDefaultValue());
-		modelEdit->setText(cfgS("ollamamodel").getDefaultValue());
+		modelsCombo->setEditText(cfgS("ollamamodel").getDefaultValue());
 		promptEdit->setPlainText(cfgS("ollamaprompt").getDefaultValue());
 		regexEdit->setText(cfgS("ollamaregex").getDefaultValue());
 		debugCheck->setChecked(cfgB("ollamadebug").getDefaultValue());
@@ -375,7 +437,7 @@ void PieceNumRecognizer::showConfig() {
 
 	if (QDialog::Accepted == dlg.exec()) {
 		cfgS("ollamaapi").setValue(apiEdit->text());
-		cfgS("ollamamodel").setValue(modelEdit->text());
+		cfgS("ollamamodel").setValue(modelsCombo->currentText());
 		cfgS("ollamaprompt").setValue(promptEdit->toPlainText());
 		cfgS("ollamaregex").setValue(regexEdit->text());
 		cfgB("ollamadebug").setValue(debugCheck->isChecked());

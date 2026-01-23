@@ -20,7 +20,7 @@
 #ifndef PIECENUMRECOGNIZER_HH
 #define PIECENUMRECOGNIZER_HH
 
-#include <QObject>
+#include <QJsonObject>
 #include "Displayer.hh"
 
 class DisplayerToolSelect;
@@ -67,9 +67,10 @@ private:
 	DisplayerToolSelect* m_tool;
 	QSizeF m_avgPieceNumSize;
 
+	static QPair<QJsonObject, QString> sendRequest(const QUrl& endpoint, int timeoutMs, const QJsonObject* payload = nullptr, const QString* debugPath = nullptr);
 	QImage prepareImage(NumberedDisplayerSelection* sel) const;
-	QByteArray preparePayload(const QImage& img) const ;
-	QPair<QString, QByteArray> sendRequest(const QByteArray& payload) const;
+	QJsonObject prepareOcrPayload(const QImage& img) const ;
+	QPair<QString, bool> sendOcrRequest(const QJsonObject& payload, const QString& debugPath) const;
 };
 
 #endif // PIECENUMRECOGNIZER_HH
