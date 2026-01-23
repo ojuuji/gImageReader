@@ -25,20 +25,25 @@
 
 class DisplayerToolSelect;
 class NumberedDisplayerSelection;
+class QPlainTextEdit;
 
 class StickyTooltip : public QWidget {
 	Q_OBJECT
 public:
 	StickyTooltip(const QString& text, QPoint pos);
 
-	static int verticalPadding() {
-		return 2 * s_padding;
-	}
+	static int verticalPadding();
+
+private slots:
+	void onDocumentContentsChanged();
+	void onFocusChanged(QWidget *old, QWidget *now);
 
 private:
-	static const int s_padding = 3;
+	QString m_prevText;
+	QPlainTextEdit* m_edit{};
 	bool m_dragging = false;
 	QPoint m_dragOffset;
+	QTimer* m_closeTimer{};
 
 	void mousePressEvent(QMouseEvent* e) override;
 	void mouseMoveEvent(QMouseEvent* e) override;

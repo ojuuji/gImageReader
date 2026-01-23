@@ -33,6 +33,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QPlainTextEdit>
 
 static QString DEFAULT_OLLAMA_MODEL = "llama3.2-vision";
 static QString DEFAULT_OLLAMA_PROMPT = R"(
@@ -62,36 +63,53 @@ Output rules:
 static QString DEFAULT_OLLAMA_REGEX = "\"(\\S+)\"\\s*:\\s*\"(\\S+)\"";
 
 StickyTooltip::StickyTooltip(const QString& text, QPoint pos)
-	: QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint) {
+	: QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint), m_prevText(text) {
 	setAttribute(Qt::WA_DeleteOnClose);
 	setAttribute(Qt::WA_TranslucentBackground);
 	setAttribute(Qt::WA_ShowWithoutActivating);
 	setAttribute(Qt::WA_TransparentForMouseEvents, false);
-	setFocusPolicy(Qt::NoFocus);
 
-	auto* layout = new QVBoxLayout(this);
-	layout->setContentsMargins(0, 0, 0, 0);
-	auto* label = new QLabel(text);
-	label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
-	layout->addWidget(label);
+	m_edit = new QPlainTextEdit(text, this);
+	m_edit->document()->setDocumentMargin(2.0);
+	connect(m_edit->document(), &QTextDocument::contentsChanged, this, &StickyTooltip::onDocumentContentsChanged);
 
-	setStyleSheet(QString(R"(
-		StickyTooltip {
-			background: transparent;
-		}
-		QLabel {
-			background: #eee;
-			border: 1px solid #888;
-			border-radius: 3px;
-			padding: 0px %1px;
-		}
-	)").arg(s_padding));
+	QFontMetrics fm(m_edit->font());
+	int maxH = fm.lineSpacing() * 2 + verticalPadding();
+	int maxW = fm.boundingRect("206RJXNNNNNNNN").width() + 3 * 2;
+	m_edit->setFixedSize(maxW, maxH);
+	m_edit->setFrameStyle(QFrame::Box);
+	m_edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
 	adjustSize();
 	move(pos);
 	show();
 
-	QTimer::singleShot(10000, this, &QWidget::close);
+	m_closeTimer = new QTimer(this);
+	m_closeTimer->setSingleShot(true);
+	m_closeTimer->start(10000);
+	connect(m_closeTimer, &QTimer::timeout, this, &QWidget::close);
+
+	connect(qApp, &QApplication::focusChanged, this, &StickyTooltip::onFocusChanged);
+}
+
+void StickyTooltip::onDocumentContentsChanged() {
+	QString newText = m_edit->toPlainText();
+	if (newText != m_prevText) {
+		MAIN->getOutputEditor()->modifyTail(m_prevText + "\n", newText + "\n");
+		m_prevText = newText;
+	}
+}
+
+void StickyTooltip::onFocusChanged(QWidget *old, QWidget *now) {
+	if (now && (now == this || this->isAncestorOf(now))) {
+		m_closeTimer->stop();
+	} else if (old && (old == this || this->isAncestorOf(old))) {
+		m_closeTimer->start(10000);
+	}
+}
+
+int StickyTooltip::verticalPadding() {
+	return 8;
 }
 
 void StickyTooltip::mousePressEvent(QMouseEvent* e) {

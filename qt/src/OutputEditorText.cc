@@ -326,6 +326,20 @@ void OutputEditorText::appendText(const QString& text) {
 	QMetaObject::invokeMethod(this, "addText", Qt::QueuedConnection, Q_ARG(QString, text), Q_ARG(bool, false));
 }
 
+void OutputEditorText::modifyTail(const QString& oldText, const QString& newText) {
+	QMetaObject::invokeMethod(this, "modifyTailPost", Qt::QueuedConnection, Q_ARG(QString, oldText), Q_ARG(QString, newText));
+}
+
+void OutputEditorText::modifyTailPost(const QString& oldText, const QString& newText) {
+	if (!oldText.isEmpty()) {
+		QString content = textEdit()->toPlainText();
+		if (content.endsWith(oldText)) {
+			content.chop(oldText.length());
+			textEdit()->setPlainText(content + newText);
+		}
+	}
+}
+
 void OutputEditorText::addText(const QString& text, bool insert) {
 	if (insert) {
 		textEdit()->textCursor().insertText(text);

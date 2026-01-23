@@ -62,6 +62,7 @@ public:
 	}
 	virtual BatchProcessor* createBatchProcessor(const QMap<QString, QVariant>& options) const = 0;
 	virtual void appendText(const QString& /*text*/) {}
+	virtual void modifyTail(const QString& /*oldText*/, const QString& /*newText*/) {}
 
 	virtual bool containsSource(const QString& source, int sourcePage) const { return false; }
 	virtual QString crashSave(const QString& filename) const = 0;

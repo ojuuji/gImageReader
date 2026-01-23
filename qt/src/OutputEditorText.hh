@@ -52,6 +52,7 @@ public:
 	void readError(const QString& errorMsg, ReadSessionData* data) override;
 	BatchProcessor* createBatchProcessor(const QMap<QString, QVariant>& options) const override { return new TextBatchProcessor(options["prependPage"].toBool()); }
 	void appendText(const QString& text) override;
+	void modifyTail(const QString& oldText, const QString& newText) override;
 	QString crashSave(const QString& filename) const override;
 
 public slots:
@@ -84,6 +85,7 @@ private:
 
 private slots:
 	void addText(const QString& text, bool insert);
+	void modifyTailPost(const QString& oldText, const QString& newText);
 	void filterBuffer();
 	void findReplace(const QString& searchstr, const QString& replacestr, bool matchCase, bool backwards, bool replace);
 	void replaceAll(const QString& searchstr, const QString& replacestr, bool matchCase);
