@@ -173,7 +173,8 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 	clearAction->setEnabled(!m_selections.isEmpty());
 	QAction* saveSelectionsAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save selections as images"), &menu);
 	QAction* savePageAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save page as image"), &menu);
-	menu.addActions(QList<QAction*>() << clearAction << saveSelectionsAction << savePageAction);
+	QAction* showPnrConfigAction = new QAction(QIcon::fromTheme("preferences-system"), _("Configure piece num recognizer"), &menu);
+	menu.addActions(QList<QAction*>() << clearAction << saveSelectionsAction << savePageAction << showPnrConfigAction);
 	QAction* selected = menu.exec(event->globalPos());
 	if (selected == clearAction) {
 		clearSelections();
@@ -181,6 +182,8 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 		saveAllSelections();
 	} else if (selected == savePageAction) {
 		saveSelection();
+	} else if (selected == showPnrConfigAction) {
+		m_pnr.showConfig();
 	}
 }
 

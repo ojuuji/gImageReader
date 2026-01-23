@@ -85,6 +85,9 @@ public:
 	T getValue() const {
 		return QSettings().value(m_key, m_defaultValue).template value<T>();
 	}
+	T getDefaultValue() const {
+		return m_defaultValue.value<T>();
+	}
 	void setValue(const T& value) {
 		QSettings().setValue(m_key, QVariant::fromValue(value));
 		emit changed();

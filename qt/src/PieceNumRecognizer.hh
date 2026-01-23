@@ -60,6 +60,7 @@ public:
 	void setAvgPieceNumSize(QSizeF size) {
 		m_avgPieceNumSize = size;
 	}
+	void showConfig();
 	void recognizePieceNum(NumberedDisplayerSelection* sel);
 
 private:
