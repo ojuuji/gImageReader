@@ -35,8 +35,9 @@ public:
 	static int verticalPadding();
 
 private slots:
-	void onDocumentContentsChanged();
+	void onTextChanged();
 	void onFocusChanged(QWidget *old, QWidget *now);
+	void validateContent();
 
 private:
 	QString m_prevText;

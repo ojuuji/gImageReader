@@ -40,7 +40,7 @@
 
 static QString DEFAULT_OLLAMA_API = "http://localhost:11434";
 
-static QString DEFAULT_OLLAMA_MODEL = "llama3.2-vision";
+static QString DEFAULT_OLLAMA_MODEL = "blaifa/InternVL3_5:8b";
 
 static QString DEFAULT_OLLAMA_PROMPT = R"(You are extracting structured data from a CaDA "bill of materials" page.
 
@@ -64,7 +64,9 @@ Output rules:
 - Do not add explanations, reasoning, comments, or any text outside the JSON structure.
 - Do not infer or guess missing information. If either value is unreadable, output an empty string for that field.)";
 
-static QString DEFAULT_OLLAMA_REGEX = "\"(\\S+)\"\\s*:\\s*\"(\\S+)\"";
+static QString DEFAULT_OLLAMA_REGEX = R"_("(\S+)"\s*:\s*"(\S+)")_";
+
+static QString DEFAULT_VALIDATE_REGEX = R"_(^(x\d+|\d+x)\n(\d{3}R)?J[A-Z]\d{4}(\d{4}|\.\d{2})?$)_";
 
 static VarSetting<bool>& cfgB(const char* key) {
 	return *ConfigSettings::get<VarSetting<bool>>(key);
@@ -83,11 +85,12 @@ StickyTooltip::StickyTooltip(const QString& text, QPoint pos)
 
 	m_edit = new QPlainTextEdit(text, this);
 	m_edit->document()->setDocumentMargin(2.0);
-	connect(m_edit->document(), &QTextDocument::contentsChanged, this, &StickyTooltip::onDocumentContentsChanged);
+	connect(m_edit->document(), &QTextDocument::contentsChanged, this, &StickyTooltip::onTextChanged);
 
 	QFontMetrics fm(m_edit->font());
 	int maxH = fm.lineSpacing() * 2 + verticalPadding();
-	int maxW = fm.boundingRect("206RJXNNNNNNNN").width() + 3 * 2;
+	QString placeHolder(std::max(text.split("\n").last().size(), (qsizetype)8), QChar('X'));
+	int maxW = fm.boundingRect(placeHolder).width() * 4 / 3 + 3 * 2;
 	m_edit->setFixedSize(maxW, maxH);
 	m_edit->setFrameStyle(QFrame::Box);
 	m_edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -102,20 +105,23 @@ StickyTooltip::StickyTooltip(const QString& text, QPoint pos)
 	connect(m_closeTimer, &QTimer::timeout, this, &QWidget::close);
 
 	connect(qApp, &QApplication::focusChanged, this, &StickyTooltip::onFocusChanged);
+	connect(&cfgS("pnrregex"), &VarSetting<QString>::changed, this, &StickyTooltip::validateContent);
+	validateContent();
 }
 
-void StickyTooltip::onDocumentContentsChanged() {
+void StickyTooltip::onTextChanged() {
 	QString newText = m_edit->toPlainText();
 	if (newText != m_prevText) {
 		MAIN->getOutputEditor()->modifyTail(m_prevText + "\n", newText + "\n");
 		m_prevText = newText;
 	}
+	validateContent();
 }
 
 void StickyTooltip::onFocusChanged(QWidget *old, QWidget *now) {
-	if (now && (now == this || this->isAncestorOf(now))) {
+	if (now == this || isAncestorOf(now)) {
 		m_closeTimer->stop();
-	} else if (old && (old == this || this->isAncestorOf(old))) {
+	} else if (old == this || isAncestorOf(old)) {
 		m_closeTimer->start(10000);
 	}
 }
@@ -154,12 +160,21 @@ void StickyTooltip::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
+void StickyTooltip::validateContent() {
+	QString text = m_edit->toPlainText();
+	bool isValid = QRegularExpression(cfgS("pnrregex").getValue()).match(text).hasMatch();
+	QPalette p = m_edit->palette();
+	p.setColor(QPalette::Base, isValid ? QColor("#cfc") : QColor("#fcc"));
+	m_edit->setPalette(p);
+}
+
 PieceNumRecognizer::PieceNumRecognizer(DisplayerToolSelect* tool)
 	: QObject(tool), m_tool(tool) {
 	ADD_SETTING(VarSetting<QString> ("ollamaapi", DEFAULT_OLLAMA_API));
 	ADD_SETTING(VarSetting<QString> ("ollamamodel", DEFAULT_OLLAMA_MODEL));
 	ADD_SETTING(VarSetting<QString> ("ollamaprompt", DEFAULT_OLLAMA_PROMPT));
 	ADD_SETTING(VarSetting<QString> ("ollamaregex", DEFAULT_OLLAMA_REGEX));
+	ADD_SETTING(VarSetting<QString> ("pnrregex", DEFAULT_VALIDATE_REGEX));
 	ADD_SETTING(VarSetting<bool> ("ollamadebug", false));
 }
 
@@ -369,26 +384,18 @@ void PieceNumRecognizer::showConfig() {
 	modelLayout->addWidget(fetchBtn);
 
 	auto promptEdit = new QPlainTextEdit(cfgS("ollamaprompt").getValue(), &dlg);
-	auto regexEdit = new QLineEdit(cfgS("ollamaregex").getValue(), &dlg);
-
-	auto debugCheck = new QCheckBox(_("Enable debug output"), &dlg);
+	auto responseRegexEdit = new QLineEdit(cfgS("ollamaregex").getValue(), &dlg);
+	auto validateRegexEdit = new QLineEdit(cfgS("pnrregex").getValue(), &dlg);
+	auto debugCheck = new QCheckBox(_("Save last request data as <TempDir>/gImageReaderLastOllamaRe*.*"), &dlg);
 	debugCheck->setChecked(cfgB("ollamadebug").getValue());
-
-	auto debugNote = new QLabel(_("Save Ollama communication as <tmp_dir>/gImageReaderLastOllamaRe*.*"));
-	debugNote->setStyleSheet("color: gray; font-size: 11px; padding-left: 24px; padding-bottom: 10px;");
-
-	auto debugLayout = new QVBoxLayout;
-	debugLayout->setContentsMargins(0, 0, 0, 0);
-	debugLayout->setSpacing(0);
-	debugLayout->addWidget(debugCheck);
-	debugLayout->addWidget(debugNote);
 
 	auto form = new QFormLayout;
 	form->addRow(_("Ollama API:"), apiEdit);
-	form->addRow(_("Model name:"), modelLayout);
+	form->addRow(_("Model:"), modelLayout);
 	form->addRow(_("Prompt:"), promptEdit);
-	form->addRow(_("Response regex:"), regexEdit);
-	form->addRow(debugLayout);
+	form->addRow(_("Response regex:"), responseRegexEdit);
+	form->addRow(_("Validate regex:"), validateRegexEdit);
+	form->addRow(debugCheck);
 
 	auto buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel, &dlg);
 	buttons->addButton(QDialogButtonBox::RestoreDefaults);
@@ -397,23 +404,26 @@ void PieceNumRecognizer::showConfig() {
 
 	auto mainLayout = new QVBoxLayout;
 	mainLayout->addLayout(form);
+	mainLayout->addSpacing(8);
 	mainLayout->addWidget(buttons);
 
 	dlg.setLayout(mainLayout);
 	dlg.setMinimumSize(420, 300);
-	dlg.resize(532, 380);
+	dlg.resize(532, 390);
 
 	auto onChanged = [&](auto&&...) {
 		bool canSave = apiEdit->text() != cfgS("ollamaapi").getValue() ||
 			modelsCombo->currentText() != cfgS("ollamamodel").getValue() ||
 			promptEdit->toPlainText() != cfgS("ollamaprompt").getValue() ||
-			regexEdit->text() != cfgS("ollamaregex").getValue() ||
+			responseRegexEdit->text() != cfgS("ollamaregex").getValue() ||
+			validateRegexEdit->text() != cfgS("pnrregex").getValue() ||
 			debugCheck->isChecked() != cfgB("ollamadebug").getValue();
 
 		bool canRestore = apiEdit->text() != cfgS("ollamaapi").getDefaultValue() ||
 			modelsCombo->currentText() != cfgS("ollamamodel").getDefaultValue() ||
 			promptEdit->toPlainText() != cfgS("ollamaprompt").getDefaultValue() ||
-			regexEdit->text() != cfgS("ollamaregex").getDefaultValue() ||
+			responseRegexEdit->text() != cfgS("ollamaregex").getDefaultValue() ||
+			validateRegexEdit->text() != cfgS("pnrregex").getDefaultValue() ||
 			debugCheck->isChecked() != cfgB("ollamadebug").getDefaultValue();
 
 		buttons->button(QDialogButtonBox::Save)->setEnabled(canSave);
@@ -424,14 +434,16 @@ void PieceNumRecognizer::showConfig() {
 	connect(apiEdit, &QLineEdit::textChanged, onChanged);
 	connect(modelsCombo, &QComboBox::editTextChanged, onChanged);
 	connect(promptEdit, &QPlainTextEdit::textChanged, onChanged);
-	connect(regexEdit, &QLineEdit::textChanged, onChanged);
+	connect(responseRegexEdit, &QLineEdit::textChanged, onChanged);
+	connect(validateRegexEdit, &QLineEdit::textChanged, onChanged);
 	connect(debugCheck, &QCheckBox::toggled, onChanged);
 
 	connect(buttons->button(QDialogButtonBox::RestoreDefaults), &QPushButton::clicked, [&]() {
 		apiEdit->setText(cfgS("ollamaapi").getDefaultValue());
 		modelsCombo->setEditText(cfgS("ollamamodel").getDefaultValue());
 		promptEdit->setPlainText(cfgS("ollamaprompt").getDefaultValue());
-		regexEdit->setText(cfgS("ollamaregex").getDefaultValue());
+		responseRegexEdit->setText(cfgS("ollamaregex").getDefaultValue());
+		validateRegexEdit->setText(cfgS("pnrregex").getDefaultValue());
 		debugCheck->setChecked(cfgB("ollamadebug").getDefaultValue());
 	});
 
@@ -439,7 +451,8 @@ void PieceNumRecognizer::showConfig() {
 		cfgS("ollamaapi").setValue(apiEdit->text());
 		cfgS("ollamamodel").setValue(modelsCombo->currentText());
 		cfgS("ollamaprompt").setValue(promptEdit->toPlainText());
-		cfgS("ollamaregex").setValue(regexEdit->text());
+		cfgS("ollamaregex").setValue(responseRegexEdit->text());
+		cfgS("pnrregex").setValue(validateRegexEdit->text());
 		cfgB("ollamadebug").setValue(debugCheck->isChecked());
 	}
 }
