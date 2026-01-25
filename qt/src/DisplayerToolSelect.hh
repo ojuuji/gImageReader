@@ -66,7 +66,7 @@ private:
 	NumberedDisplayerSelection* m_curSel = nullptr;
 	QList<NumberedDisplayerSelection*> m_selections;
 	QColor m_bgColor;
-	int m_bgColorDiff = 16;
+	int m_bgColorDiff = 2;
 	PieceNumRecognizer m_pnr;
 
 	QPair<QRectF, PostProcessor> calcBoundingBox(const QPoint& start);
@@ -79,6 +79,7 @@ private:
 	void autodetectLayout(bool noDeskew = false);
 	void recognizePiece(QPoint pos, bool includePieceNum);
 	void setPieceImgBgColor(QPoint pos);
+	void modifyBgColorDiff(bool increase);
 };
 
 class NumberedDisplayerSelection : public DisplayerSelection {

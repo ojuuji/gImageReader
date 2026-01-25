@@ -174,11 +174,13 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 	QAction* saveSelectionsAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save selections as images"), &menu);
 	QAction* savePageAction = new QAction(QIcon::fromTheme("document-save-as"), _("Save page as image"), &menu);
 	QAction* setBgColorAction = new QAction(_("Set piece image background color") + "\tCtrl+Alt+LeftClick", &menu);
+	QAction* incBgColorDiffAction = new QAction(_("Increase image background color diff") + "\tAlt+WheelUp", &menu);
+	QAction* decBgColorDiffAction = new QAction(_("Decrease image background color diff") + "\tAlt+WheelDown", &menu);
 	QAction* recognizeImgAction = new QAction(_("Recognize piece image") + "\tAlt+LeftClick", &menu);
 	QAction* recognizeImgNumAction = new QAction(_("Recognize piece image and num") + "\tAlt+Shift+LeftClick", &menu);
 	QAction* showPnrConfigAction = new QAction(QIcon::fromTheme("preferences-system"), _("Configure piece num recognizer"), &menu);
 	menu.addActions(QList<QAction*>() << clearAction << saveSelectionsAction << savePageAction
-		<< setBgColorAction << recognizeImgAction << recognizeImgNumAction << showPnrConfigAction);
+		<< setBgColorAction << incBgColorDiffAction << decBgColorDiffAction << recognizeImgAction << recognizeImgNumAction << showPnrConfigAction);
 	QAction* selected = menu.exec(event->globalPos());
 	if (selected == clearAction) {
 		clearSelections();
@@ -188,6 +190,8 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 		saveSelection();
 	} else if (selected == setBgColorAction) {
 		setPieceImgBgColor(event->pos());
+	} else if (selected == incBgColorDiffAction || selected == decBgColorDiffAction) {
+		modifyBgColorDiff(selected == incBgColorDiffAction);
 	} else if (selected == recognizeImgAction || selected == recognizeImgNumAction) {
 		recognizePiece(event->pos(), selected == recognizeImgNumAction);
 	} else if (selected == showPnrConfigAction) {
@@ -281,9 +285,7 @@ void DisplayerToolSelect::mouseReleaseEvent(QMouseEvent* event) {
 
 void DisplayerToolSelect::wheelEvent(QWheelEvent* event) {
 	if (event->modifiers() & Qt::AltModifier) {
-		m_bgColorDiff = qMax(2, m_bgColorDiff + (event->angleDelta().x() > 0 ? 2 : -2));
-		MAIN->showStatus(_("Modified background color diff: %1").arg(m_bgColorDiff));
-		event->accept();
+		modifyBgColorDiff(event->angleDelta().x() > 0);
 	}
 }
 
@@ -483,6 +485,11 @@ void DisplayerToolSelect::setPieceImgBgColor(QPoint pos) {
 		m_bgColor = QColor();
 		MAIN->showStatus(_("Changed background color to auto."));
 	}
+}
+
+void DisplayerToolSelect::modifyBgColorDiff(bool increase) {
+	m_bgColorDiff = qMax(2, m_bgColorDiff + (increase ? 2 : -2));
+	MAIN->showStatus(_("Modified background color diff: %1").arg(m_bgColorDiff));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
