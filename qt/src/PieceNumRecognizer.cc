@@ -76,6 +76,42 @@ static VarSetting<QString>& cfgS(const char* key) {
 	return *ConfigSettings::get<VarSetting<QString>>(key);
 }
 
+class DraggableTextEdit : public QPlainTextEdit {
+public:
+	DraggableTextEdit(const QString& text, StickyTooltip* parent)
+		: QPlainTextEdit(text, parent), m_parent(parent) {
+		viewport()->setCursor(Qt::OpenHandCursor);
+	}
+
+private:
+	StickyTooltip* m_parent;
+
+	void mousePressEvent(QMouseEvent* e) override {
+		m_parent->mousePressEvent(e);
+		if (e->isAccepted()) {
+			viewport()->setCursor(Qt::ClosedHandCursor);
+		} else {
+			QPlainTextEdit::mousePressEvent(e);
+		}
+	}
+
+	void mouseMoveEvent(QMouseEvent* e) override {
+		m_parent->mouseMoveEvent(e);
+		if (!e->isAccepted()) {
+			QPlainTextEdit::mouseMoveEvent(e);
+		}
+	}
+
+	void mouseReleaseEvent(QMouseEvent* e) override {
+		m_parent->mouseReleaseEvent(e);
+		if (e->isAccepted()) {
+			viewport()->setCursor(Qt::OpenHandCursor);
+		} else {
+			QPlainTextEdit::mouseReleaseEvent(e);
+		}
+	}
+};
+
 StickyTooltip::StickyTooltip(const QString& text, QPoint pos)
 	: QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint), m_prevText(text) {
 	setAttribute(Qt::WA_DeleteOnClose);
@@ -83,7 +119,9 @@ StickyTooltip::StickyTooltip(const QString& text, QPoint pos)
 	setAttribute(Qt::WA_ShowWithoutActivating);
 	setAttribute(Qt::WA_TransparentForMouseEvents, false);
 
-	m_edit = new QPlainTextEdit(text, this);
+	setCursor(Qt::OpenHandCursor);
+
+	m_edit = new DraggableTextEdit(text, this);
 	m_edit->document()->setDocumentMargin(2.0);
 	connect(m_edit->document(), &QTextDocument::contentsChanged, this, &StickyTooltip::onTextChanged);
 
@@ -134,6 +172,7 @@ void StickyTooltip::mousePressEvent(QMouseEvent* e) {
 	if (e->button() == Qt::LeftButton) {
 		m_dragging = true;
 		m_dragOffset = e->globalPosition().toPoint() - frameGeometry().topLeft();
+		setCursor(Qt::ClosedHandCursor);
 		e->accept();
 	}
 }
@@ -148,6 +187,7 @@ void StickyTooltip::mouseMoveEvent(QMouseEvent* e) {
 void StickyTooltip::mouseReleaseEvent(QMouseEvent* e) {
 	if (e->button() == Qt::LeftButton) {
 		m_dragging = false;
+		setCursor(Qt::OpenHandCursor);
 		e->accept();
 	}
 }

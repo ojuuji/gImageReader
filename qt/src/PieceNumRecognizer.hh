@@ -26,6 +26,7 @@
 class DisplayerToolSelect;
 class NumberedDisplayerSelection;
 class QPlainTextEdit;
+class DraggableTextEdit;
 
 class StickyTooltip : public QWidget {
 	Q_OBJECT
@@ -40,6 +41,8 @@ private slots:
 	void validateContent();
 
 private:
+	friend class DraggableTextEdit;
+
 	QString m_prevText;
 	QPlainTextEdit* m_edit{};
 	bool m_dragging = false;
