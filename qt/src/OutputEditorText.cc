@@ -336,6 +336,7 @@ void OutputEditorText::modifyTailPost(const QString& oldText, const QString& new
 		if (content.endsWith(oldText)) {
 			content.chop(oldText.length());
 			textEdit()->setPlainText(content + newText);
+			textEdit()->moveCursor(QTextCursor::End);
 		}
 	}
 }
