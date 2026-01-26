@@ -31,9 +31,7 @@ class DraggableTextEdit;
 class StickyTooltip : public QWidget {
 	Q_OBJECT
 public:
-	StickyTooltip(const QString& text, QPoint pos);
-
-	static int verticalPadding();
+	StickyTooltip(const QString& text);
 
 private slots:
 	void onTextChanged();

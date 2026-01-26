@@ -112,7 +112,7 @@ private:
 	}
 };
 
-StickyTooltip::StickyTooltip(const QString& text, QPoint pos)
+StickyTooltip::StickyTooltip(const QString& text)
 	: QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint), m_prevText(text) {
 	setAttribute(Qt::WA_DeleteOnClose);
 	setAttribute(Qt::WA_TranslucentBackground);
@@ -126,7 +126,7 @@ StickyTooltip::StickyTooltip(const QString& text, QPoint pos)
 	connect(m_edit->document(), &QTextDocument::contentsChanged, this, &StickyTooltip::onTextChanged);
 
 	QFontMetrics fm(m_edit->font());
-	int maxH = fm.lineSpacing() * 2 + verticalPadding();
+	int maxH = fm.lineSpacing() * 2 + 4 * 2;
 	QString placeHolder(std::max(text.split("\n").last().size(), (qsizetype)8), QChar('X'));
 	int maxW = fm.boundingRect(placeHolder).width() * 4 / 3 + 3 * 2;
 	m_edit->setFixedSize(maxW, maxH);
@@ -134,8 +134,6 @@ StickyTooltip::StickyTooltip(const QString& text, QPoint pos)
 	m_edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
 	adjustSize();
-	move(pos);
-	show();
 
 	m_closeTimer = new QTimer(this);
 	m_closeTimer->setSingleShot(true);
@@ -162,10 +160,6 @@ void StickyTooltip::onFocusChanged(QWidget *old, QWidget *now) {
 	} else if (old == this || isAncestorOf(old)) {
 		m_closeTimer->start(10000);
 	}
-}
-
-int StickyTooltip::verticalPadding() {
-	return 8;
 }
 
 void StickyTooltip::mousePressEvent(QMouseEvent* e) {
@@ -250,14 +244,13 @@ void PieceNumRecognizer::recognizePieceNum(NumberedDisplayerSelection* sel) {
 	} else {
 		MAIN->getOutputEditor()->appendText(response + "\n");
 
-		qreal minY = sel->rect().bottom() - 2.0 * m_avgPieceNumSize.height() - StickyTooltip::verticalPadding();
-		qreal maxY = sel->rect().bottom() - 1.2 * m_avgPieceNumSize.height() - StickyTooltip::verticalPadding();
-		QPointF pos(sel->rect().left(), std::clamp(sel->rect().top(), minY, maxY));
-		QPoint posGlobal = m_tool->getDisplayer()->mapToGlobal(m_tool->getDisplayer()->mapFromScene(pos));
-
 		// QToolTip hides immediately, maybe because view loses keyboard focus
 		// when appending text to editor
-		new StickyTooltip(response, posGlobal);
+		auto tooltip = new StickyTooltip(response);
+		QPoint pos = m_tool->getDisplayer()->mapToGlobal(m_tool->getDisplayer()->mapFromScene(sel->rect().bottomLeft()));
+		pos.ry() -= tooltip->height();
+		tooltip->move(pos);
+		tooltip->show();
 	}
 
 	if (!debugBasePath.isEmpty()) {
