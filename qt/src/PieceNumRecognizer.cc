@@ -42,22 +42,18 @@ static QString DEFAULT_OLLAMA_API = "http://localhost:11434";
 
 static QString DEFAULT_OLLAMA_MODEL = "blaifa/InternVL3_5:8b";
 
-static QString DEFAULT_OLLAMA_PROMPT = R"(You are extracting structured data from a CaDA "bill of materials" page.
+static QString DEFAULT_OLLAMA_PROMPT = R"(You are extracting structured data from a part of CaDA "bill of materials" page.
 
-The image contains:
-- A piece image.
-- A magenta outlined box overlaid on top of the piece image. This box is only a selection indicator and must be ignored.
-- Directly below this piece image, there are exactly two lines of text:
-  1. Piece quantity
-  2. Piece SKU
+All words here are independent and arranged vertically in columns.
+
+Under magenta box there are two words arranged in a column:
+1. Piece quantity, which appears in one of these exact formats: "<number>x" or "x<number>" (examples: "14x", "2x", "x67", "x1").
+2. Piece SKU, which contains 8 or more alphanumeric characters.
+
+Extract ONLY these two words.
 
 Important:
 - The image may contain other SKUs, quantities, or text elsewhere. Ignore all of them.
-- Only the two lines of text directly below the selected piece image are relevant.
-
-Extract ONLY:
-- The piece quantity, which appears in one of these exact formats: "<number>x" or "x<number>" (examples: "14x", "2x", "x67", "x1").
-- The piece SKU, which is the other line of text. It contains at least 8 characters, only uppercase Latin letters and digits.
 
 Output rules:
 - Use exactly this JSON structure: {"<piece_SKU>":"<piece_quantity>"}
@@ -263,9 +259,8 @@ QImage PieceNumRecognizer::prepareImage(NumberedDisplayerSelection* sel) const {
 	pieceRect.setTop(pieceRect.top() + pieceRect.height() / 2.0);
 
 	QPointF offset(m_avgPieceNumSize.width() / 2.0, 1.0);
-	qreal minWidth = qMax(m_avgPieceNumSize.width(), pieceRect.width());
 	QRectF exportRect = pieceRect;
-	exportRect.adjust(-offset.x(), -offset.y(), minWidth * 1.5 - exportRect.width(), 1.5 * m_avgPieceNumSize.height());
+	exportRect.adjust(-offset.x(), -offset.y(), m_avgPieceNumSize.width() * 1.5 - exportRect.width(), 1.5 * m_avgPieceNumSize.height());
 	QImage img = m_tool->getDisplayer()->getImage(exportRect);
 
 	QRectF boxRect(offset, pieceRect.size());
