@@ -62,7 +62,7 @@ Output rules:
 
 static QString DEFAULT_OLLAMA_REGEX = R"_("(\S+)"\s*:\s*"(\S+)")_";
 
-static QString DEFAULT_VALIDATE_REGEX = R"_(^(x\d+|\d+x)\n(\d{3}R)?J[A-Z]\d{4}(\d{4}|\.\d{2})?$)_";
+static QString DEFAULT_VALIDATE_REGEX = R"_(^(x\d+|\d+x)\n((\d{3}R)?J[A-Z]\d{4}(\d{4}|\.\d{2})?|204RC\d{9})$)_";
 
 static VarSetting<bool>& cfgB(const char* key) {
 	return *ConfigSettings::get<VarSetting<bool>>(key);
