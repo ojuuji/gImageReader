@@ -178,9 +178,11 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 	QAction* decBgColorDiffAction = new QAction(_("Decrease image background color diff") + "\tAlt+WheelDown", &menu);
 	QAction* recognizeImgAction = new QAction(_("Recognize piece image") + "\tAlt+LeftClick", &menu);
 	QAction* recognizeImgNumAction = new QAction(_("Recognize piece image and num") + "\tAlt+Shift+LeftClick", &menu);
+	QAction* recognizeNumAction = new QAction(_("Recognize piece num") + "\tCtrl+Alt+Shift+LeftClick", &menu);
 	QAction* showPnrConfigAction = new QAction(QIcon::fromTheme("preferences-system"), _("Configure piece num recognizer"), &menu);
 	menu.addActions(QList<QAction*>() << clearAction << saveSelectionsAction << savePageAction
-		<< setBgColorAction << incBgColorDiffAction << decBgColorDiffAction << recognizeImgAction << recognizeImgNumAction << showPnrConfigAction);
+		<< setBgColorAction << incBgColorDiffAction << decBgColorDiffAction << recognizeImgAction
+		<< recognizeImgNumAction << recognizeNumAction << showPnrConfigAction);
 	QAction* selected = menu.exec(event->globalPos());
 	if (selected == clearAction) {
 		clearSelections();
@@ -194,6 +196,8 @@ void DisplayerToolSelect::contextMenuEvent(QContextMenuEvent* event) {
 		modifyBgColorDiff(selected == incBgColorDiffAction);
 	} else if (selected == recognizeImgAction || selected == recognizeImgNumAction) {
 		recognizePiece(event->pos(), selected == recognizeImgNumAction);
+	} else if (selected == recognizeNumAction) {
+		m_pnr.recognizePieceNum(m_displayer->mapToSceneClamped(event->pos()));
 	} else if (selected == showPnrConfigAction) {
 		m_pnr.showConfig();
 	}
@@ -247,7 +251,9 @@ QPair<QRectF, PostProcessor> DisplayerToolSelect::calcBoundingBox(const QPoint& 
 
 void DisplayerToolSelect::mousePressEvent(QMouseEvent* event) {
 	if (event->button() == Qt::LeftButton && m_curSel == nullptr) {
-		if ((event->modifiers() & Qt::ControlModifier) && (event->modifiers() & Qt::AltModifier)) {
+		if ((event->modifiers() & Qt::ControlModifier) && (event->modifiers() & Qt::AltModifier) && (event->modifiers() & Qt::ShiftModifier)) {
+			m_pnr.recognizePieceNum(m_displayer->mapToSceneClamped(event->pos()));
+		} else if ((event->modifiers() & Qt::ControlModifier) && (event->modifiers() & Qt::AltModifier)) {
 			setPieceImgBgColor(event->pos());
 		} else if (event->modifiers() & Qt::ControlModifier) {
 			m_curSel = new NumberedDisplayerSelection(this, 1 + m_selections.size(), m_displayer->mapToSceneClamped(event->pos()));

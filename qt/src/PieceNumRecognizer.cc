@@ -211,7 +211,7 @@ PieceNumRecognizer::PieceNumRecognizer(DisplayerToolSelect* tool)
 PieceNumRecognizer::~PieceNumRecognizer() {
 }
 
-void PieceNumRecognizer::recognizePieceNum(NumberedDisplayerSelection* sel) {
+void PieceNumRecognizer::recognizePieceNum(std::variant<NumberedDisplayerSelection*, QPointF> source) {
 	if (m_avgPieceNumSize.isEmpty()) {
 		QMessageBox::warning(MAIN, _("Recognition errors"), _("You must set average piece num size first."));
 		return;
@@ -219,7 +219,7 @@ void PieceNumRecognizer::recognizePieceNum(NumberedDisplayerSelection* sel) {
 
 	MAIN->setOutputPaneVisible(true);
 
-	QImage img = prepareImage(sel);
+	QImage img = prepareImage(source);
 	QJsonObject json = prepareOcrPayload(img);
 
 	QString debugBasePath;
@@ -243,7 +243,13 @@ void PieceNumRecognizer::recognizePieceNum(NumberedDisplayerSelection* sel) {
 		// QToolTip hides immediately, maybe because view loses keyboard focus
 		// when appending text to editor
 		auto tooltip = new StickyTooltip(response);
-		QPoint pos = m_tool->getDisplayer()->mapToGlobal(m_tool->getDisplayer()->mapFromScene(sel->rect().bottomLeft()));
+		QPointF posF;
+		if (auto sel = std::get_if<NumberedDisplayerSelection*>(&source)) {
+			posF = (*sel)->rect().bottomLeft();
+		} else {
+			posF = std::get<QPointF>(source);
+		}
+		QPoint pos = m_tool->getDisplayer()->mapToGlobal(m_tool->getDisplayer()->mapFromScene(posF));
 		pos.ry() -= tooltip->height();
 		tooltip->move(pos);
 		tooltip->show();
@@ -254,8 +260,15 @@ void PieceNumRecognizer::recognizePieceNum(NumberedDisplayerSelection* sel) {
 	}
 }
 
-QImage PieceNumRecognizer::prepareImage(NumberedDisplayerSelection* sel) const {
-	QRectF pieceRect = sel->rect();
+QImage PieceNumRecognizer::prepareImage(std::variant<NumberedDisplayerSelection*, QPointF> source) const {
+	QRectF pieceRect;
+	if (auto sel = std::get_if<NumberedDisplayerSelection*>(&source)) {
+		pieceRect = (*sel)->rect();
+	} else {
+		auto pos = std::get<QPointF>(source);
+		pos.ry() -= m_avgPieceNumSize.height();
+		pieceRect = QRectF(pos, m_avgPieceNumSize);
+	}
 	pieceRect.setTop(pieceRect.top() + pieceRect.height() / 2.0);
 
 	QPointF offset(m_avgPieceNumSize.width() / 2.0, 1.0);

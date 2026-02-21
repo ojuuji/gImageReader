@@ -63,14 +63,14 @@ public:
 		m_avgPieceNumSize = size;
 	}
 	void showConfig();
-	void recognizePieceNum(NumberedDisplayerSelection* sel);
+	void recognizePieceNum(std::variant<NumberedDisplayerSelection*, QPointF> source);
 
 private:
 	DisplayerToolSelect* m_tool;
 	QSizeF m_avgPieceNumSize;
 
 	static QPair<QJsonObject, QString> sendRequest(const QUrl& endpoint, int timeoutMs, const QJsonObject* payload = nullptr, const QString* debugPath = nullptr);
-	QImage prepareImage(NumberedDisplayerSelection* sel) const;
+	QImage prepareImage(std::variant<NumberedDisplayerSelection*, QPointF>) const;
 	QJsonObject prepareOcrPayload(const QImage& img) const ;
 	QPair<QString, bool> sendOcrRequest(const QJsonObject& payload, const QString& debugPath) const;
 };
