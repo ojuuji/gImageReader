@@ -293,7 +293,7 @@ bool Displayer::renderImage() {
 	m_scene->setSceneRect(m_imageItem->sceneBoundingRect());
 	centerOn(sceneRect().center());
 	setAngle(ui.spinBoxRotation->value());
-	if (m_scale < 1.0) {
+	if (m_scale * viewport()->devicePixelRatioF() < 1.0) {
 		m_scaleTimer.start(100);
 	}
 	emit imageChanged();
@@ -419,7 +419,7 @@ void Displayer::setZoom(Zoom action, ViewportAnchor anchor) {
 	QTransform t;
 	t.scale(m_scale, m_scale);
 	setTransform(t);
-	if (m_scale < 1.0) {
+	if (m_scale * viewport()->devicePixelRatioF() < 1.0) {
 		m_scaleTimer.start(100);
 	} else {
 		m_imageItem->setPixmap(m_pixmap);
@@ -597,7 +597,7 @@ void Displayer::setBlockAutoscale(bool block) {
 
 void Displayer::scaleImage() {
 	int page = m_currentSource->page;
-	double resolution = m_scale * m_currentSource->resolution;
+	double resolution = m_scale * viewport()->devicePixelRatioF() * m_currentSource->resolution;
 	int brightness = m_currentSource->brightness;
 	int contrast = m_currentSource->contrast;
 	bool invert = m_currentSource->invert;
@@ -618,7 +618,7 @@ void Displayer::scaleImage() {
 void Displayer::setScaledImage(QImage image) {
 	if (!image.isNull() && m_imageItem) {
 		m_imageItem->setPixmap(QPixmap::fromImage(image));
-		m_imageItem->setScale(1.0 / m_scale);
+		m_imageItem->setScale(1.0 / (m_scale * viewport()->devicePixelRatioF()));
 		m_imageItem->setTransformOriginPoint(m_imageItem->boundingRect().center());
 		m_imageItem->setPos(m_imageItem->pos() - m_imageItem->sceneBoundingRect().center());
 	}
