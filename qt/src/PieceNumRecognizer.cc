@@ -37,6 +37,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPlainTextEdit>
+#include <QScopeGuard>
 
 static QString DEFAULT_OLLAMA_API = "http://localhost:11434";
 
@@ -206,13 +207,35 @@ PieceNumRecognizer::PieceNumRecognizer(DisplayerToolSelect* tool)
 PieceNumRecognizer::~PieceNumRecognizer() {
 }
 
+bool PieceNumRecognizer::ensureCanOcr() const {
+	if (m_ocrActive) {
+		MAIN->showStatus(_("Piece num recognition is already in progress."));
+		return false;
+	}
+	return true;
+}
+
 void PieceNumRecognizer::recognizePieceNum(std::variant<NumberedDisplayerSelection*, QPointF> source) {
 	if (m_avgPieceNumSize.isEmpty()) {
 		QMessageBox::warning(MAIN, _("Recognition errors"), _("You must set average piece num size first."));
 		return;
 	}
 
+	// Request runs a nested event loop, so user input can trigger another recognition meanwhile
+	if (!ensureCanOcr()) {
+		return;
+	}
+	m_ocrActive = true;
+	auto ocrActiveGuard = qScopeGuard([this] { m_ocrActive = false; });
+
 	MAIN->setOutputPaneVisible(true);
+
+	QPointF posF;
+	if (auto sel = std::get_if<NumberedDisplayerSelection*>(&source)) {
+		posF = (*sel)->rect().bottomLeft();
+	} else {
+		posF = std::get<QPointF>(source);
+	}
 
 	QImage img = prepareImage(source);
 	QJsonObject json = prepareOcrPayload(img);
@@ -238,12 +261,6 @@ void PieceNumRecognizer::recognizePieceNum(std::variant<NumberedDisplayerSelecti
 		// QToolTip hides immediately, maybe because view loses keyboard focus
 		// when appending text to editor
 		auto tooltip = new StickyTooltip(response);
-		QPointF posF;
-		if (auto sel = std::get_if<NumberedDisplayerSelection*>(&source)) {
-			posF = (*sel)->rect().bottomLeft();
-		} else {
-			posF = std::get<QPointF>(source);
-		}
 		QPoint pos = m_tool->getDisplayer()->mapToGlobal(m_tool->getDisplayer()->mapFromScene(posF));
 		pos.ry() -= tooltip->height();
 		tooltip->move(pos);
@@ -302,6 +319,7 @@ QJsonObject PieceNumRecognizer::prepareOcrPayload(const QImage& img) const {
 
 QPair<QJsonObject, QString> PieceNumRecognizer::sendRequest(const QUrl& endpoint, int timeoutMs, const QJsonObject* payload, const QString* debugPath) {
 	QNetworkRequest request(endpoint);
+	request.setTransferTimeout(timeoutMs);
 	QNetworkAccessManager manager;
 	QNetworkReply *reply;
 	if (payload) {
@@ -312,25 +330,13 @@ QPair<QJsonObject, QString> PieceNumRecognizer::sendRequest(const QUrl& endpoint
 	}
 
 	QEventLoop loop;
-	QTimer timer;
-
-	timer.setSingleShot(true);
-	timer.start(timeoutMs);
-
-	QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
 	QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-
 	loop.exec();
 	reply->deleteLater();
 
-	if (!timer.isActive()) {
-		reply->abort();
+	if (reply->error() == QNetworkReply::TimeoutError) {
 		return {QJsonObject{}, "Error: HTTP request timeout"};
-	}
-
-	timer.stop();
-
-	if (reply->error() != QNetworkReply::NoError) {
+	} else if (reply->error() != QNetworkReply::NoError) {
 		return {QJsonObject{}, QString("HTTP error: %1").arg(reply->errorString())};
 	}
 

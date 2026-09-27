@@ -466,6 +466,10 @@ void DisplayerToolSelect::autodetectLayout(bool noDeskew) {
 }
 
 void DisplayerToolSelect::recognizePiece(QPoint pos, bool includePieceNum) {
+	if (includePieceNum && !m_pnr.ensureCanOcr()) {
+		return;
+	}
+
 	auto [rect, postProcessor] = calcBoundingBox(pos);
 	if (rect.width() > 10.0 && rect.height() > 10.0) {
 		m_selections.append(new NumberedDisplayerSelection(this, 1 + m_selections.size(), rect.topLeft()));
