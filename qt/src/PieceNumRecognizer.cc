@@ -40,25 +40,20 @@
 
 static QString DEFAULT_OLLAMA_API = "http://localhost:11434";
 
-static QString DEFAULT_OLLAMA_MODEL = "blaifa/InternVL3_5:8b";
+static QString DEFAULT_OLLAMA_MODEL = "qwen3-vl:8b-instruct";
 
-static QString DEFAULT_OLLAMA_PROMPT = R"(You are extracting structured data from a part of CaDA "bill of materials" page.
+static QString DEFAULT_OLLAMA_PROMPT = R"(You are extracting structured data from a crop of a CaDA "bill of materials" page.
 
-All words here are independent and arranged vertically in columns.
+The crop contains a bright pink/magenta rectangle outlining one piece. Below that rectangle, in the same column, are exactly two lines of text, top to bottom:
+1. Piece quantity (top line) — format is always "<number>x" or "x<number>" (e.g. "14x", "2x", "x67", "x1").
+2. Piece SKU (bottom line) — a code of letters followed by digits, typically 8+ digits with no separator (e.g. "JH50320001"). Occasionally an older notation is used instead, with a period before the last two digits (e.g. "JA1001.02"). Transcribe exactly what is printed, including or omitting the period as shown.
 
-Under magenta box there are two words arranged in a column:
-1. Piece quantity, which appears in one of these exact formats: "<number>x" or "x<number>" (examples: "14x", "2x", "x67", "x1").
-2. Piece SKU, which contains 8 or more alphanumeric characters.
-
-Extract ONLY these two words.
-
-Important:
-- The image may contain other SKUs, quantities, or text elsewhere. Ignore all of them.
+The image may contain other numbers, SKUs, or text outside this column — ignore all of it. Only read the two lines directly beneath the pink/magenta rectangle.
 
 Output rules:
-- Use exactly this JSON structure: {"<piece_SKU>":"<piece_quantity>"}
-- Do not add explanations, reasoning, comments, or any text outside the JSON structure.
-- Do not infer or guess missing information. If either value is unreadable, output an empty string for that field.)";
+- Return exactly this JSON structure, nothing else: {"<piece_SKU>":"<piece_quantity>"}
+- No markdown, no code fences, no explanations, no text before or after the JSON.
+- If either value is unreadable or absent, use an empty string for that field. Never guess.)";
 
 static QString DEFAULT_OLLAMA_REGEX = R"_("(\S+)"\s*:\s*"(\S+)")_";
 
